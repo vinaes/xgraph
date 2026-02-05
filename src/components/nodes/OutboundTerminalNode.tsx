@@ -25,14 +25,13 @@ function OutboundTerminalNode({ id, data, selected }: NodeProps & { data: Termin
         selected ? 'border-white ring-2 ring-white/30' : 'border-node-terminal/50 hover:border-node-terminal hover:shadow-[0_0_12px_rgba(239,68,68,0.3)]'
       }`}
       style={{ background: 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)' }}
-      title={`${terminalLabels[nodeData.protocol] || nodeData.protocol} — ${nodeData.tag || 'unnamed'}`}
+      title={`OUTPUT (Terminal) — ${terminalLabels[nodeData.protocol] || nodeData.protocol} — ${nodeData.tag || 'unnamed'}`}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-node-terminal/30">
         <span className="text-lg">{terminalIcons[nodeData.protocol] || '⬛'}</span>
-        <span className="font-semibold text-sm text-red-200">
-          {terminalLabels[nodeData.protocol] || nodeData.protocol}
-        </span>
+        <span className="font-semibold text-sm text-red-200">{terminalLabels[nodeData.protocol] || nodeData.protocol}</span>
+        <span className="text-[10px] text-red-300/80 tracking-widest">OUTPUT</span>
       </div>
 
       {/* Body */}

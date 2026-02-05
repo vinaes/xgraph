@@ -5,7 +5,7 @@ import {
   getBezierPath,
   type EdgeProps,
 } from '@xyflow/react';
-import type { EdgeData } from '@/types';
+import type { EdgeData, TransportSettings } from '@/types';
 import { useSimulationStore } from '@/store/useSimulationStore';
 import { useStore } from '@/store';
 
@@ -28,6 +28,15 @@ function useEdgeHighlight(edgeSource: string, edgeTarget: string, edgeId: string
   return { highlighted: false, dimmed: false, hoverConnected: false };
 }
 
+function formatTransportLabel(transport?: TransportSettings): string | null {
+  if (!transport) return null;
+  const network = transport.network;
+  const security = transport.security;
+  if (network === 'raw' && security === 'none') return null;
+  const netLabel = network === 'raw' ? 'raw' : network;
+  return security && security !== 'none' ? `${netLabel}+${security}` : netLabel;
+}
+
 export const DefaultEdge = memo(function DefaultEdge(props: EdgeProps) {
   const {
     id,
@@ -44,6 +53,10 @@ export const DefaultEdge = memo(function DefaultEdge(props: EdgeProps) {
   } = props;
 
   const edgeData = data as EdgeData | undefined;
+  const transportLabel = formatTransportLabel(edgeData?.transport);
+  const displayLabel = edgeData?.label
+    ? (transportLabel ? `${edgeData.label} · ${transportLabel}` : edgeData.label)
+    : transportLabel;
   const { highlighted, dimmed, hoverConnected } = useEdgeHighlight(source, target, id);
 
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -82,7 +95,7 @@ export const DefaultEdge = memo(function DefaultEdge(props: EdgeProps) {
         }}
         markerEnd={highlighted ? 'url(#arrow-simulation)' : 'url(#arrow-default)'}
       />
-      {edgeData?.label && (
+      {displayLabel && (
         <EdgeLabelRenderer>
           <div
             style={{
@@ -93,11 +106,11 @@ export const DefaultEdge = memo(function DefaultEdge(props: EdgeProps) {
             }}
             className="text-[10px] bg-slate-800/90 border border-slate-600 text-slate-300 px-1.5 py-0.5 rounded whitespace-nowrap"
           >
-            {edgeData.label}
+            {displayLabel}
           </div>
         </EdgeLabelRenderer>
       )}
-      {edgeData?.priority !== undefined && !edgeData?.label && (
+      {edgeData?.priority !== undefined && !displayLabel && (
         <EdgeLabelRenderer>
           <div
             style={{
@@ -132,6 +145,10 @@ export const ConditionalEdge = memo(function ConditionalEdge(props: EdgeProps) {
   } = props;
 
   const edgeData = data as EdgeData | undefined;
+  const transportLabel = formatTransportLabel(edgeData?.transport);
+  const displayLabel = edgeData?.label
+    ? (transportLabel ? `${edgeData.label} · ${transportLabel}` : edgeData.label)
+    : transportLabel;
   const { highlighted, dimmed, hoverConnected } = useEdgeHighlight(source, target, id);
 
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -171,7 +188,7 @@ export const ConditionalEdge = memo(function ConditionalEdge(props: EdgeProps) {
         }}
         markerEnd={highlighted ? 'url(#arrow-simulation)' : 'url(#arrow-conditional)'}
       />
-      {edgeData?.label && (
+      {displayLabel && (
         <EdgeLabelRenderer>
           <div
             style={{
@@ -182,11 +199,11 @@ export const ConditionalEdge = memo(function ConditionalEdge(props: EdgeProps) {
             }}
             className="text-[10px] bg-indigo-900/80 border border-indigo-600/50 text-indigo-300 px-1.5 py-0.5 rounded whitespace-nowrap"
           >
-            {edgeData.label}
+            {displayLabel}
           </div>
         </EdgeLabelRenderer>
       )}
-      {edgeData?.priority !== undefined && !edgeData?.label && (
+      {edgeData?.priority !== undefined && !displayLabel && (
         <EdgeLabelRenderer>
           <div
             style={{

@@ -240,16 +240,16 @@ export default function Palette({ onOpenTemplates }: PaletteProps) {
           <PaletteSection title="Device" color="text-cyan-400" items={filterItems ? filterItems.device : deviceItems} />
         )}
         {(filterItems ? filterItems.inbound : inboundItems).length > 0 && (
-          <PaletteSection title="Inbound" color="text-node-inbound" items={filterItems ? filterItems.inbound : inboundItems} />
+          <PaletteSection title="INPUT" color="text-node-inbound" items={filterItems ? filterItems.inbound : inboundItems} />
         )}
         {(filterItems ? filterItems.routing : routingItems).length > 0 && (
           <PaletteSection title="Routing" color="text-node-routing" items={filterItems ? filterItems.routing : routingItems} />
         )}
         {(filterItems ? filterItems.terminal : outboundTerminalItems).length > 0 && (
-          <PaletteSection title="Terminal" color="text-node-terminal" items={filterItems ? filterItems.terminal : outboundTerminalItems} />
+          <PaletteSection title="OUTPUT (Terminal)" color="text-node-terminal" items={filterItems ? filterItems.terminal : outboundTerminalItems} />
         )}
         {(filterItems ? filterItems.proxy : outboundProxyItems).length > 0 && (
-          <PaletteSection title="Proxy Outbound" color="text-node-proxy" items={filterItems ? filterItems.proxy : outboundProxyItems} />
+          <PaletteSection title="OUTPUT (Proxy)" color="text-node-proxy" items={filterItems ? filterItems.proxy : outboundProxyItems} />
         )}
         {filterItems && filterItems.device.length === 0 && filterItems.inbound.length === 0 && filterItems.routing.length === 0 && filterItems.terminal.length === 0 && filterItems.proxy.length === 0 && (
           <div className="text-xs text-slate-500 text-center py-4">

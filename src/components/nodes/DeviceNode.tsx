@@ -43,7 +43,7 @@ function DeviceNode({ id, data, selected }: NodeProps & { data: DeviceNodeData }
 
       <ValidationBadge nodeId={id} />
 
-      {/* Output handle only (right) — device connects TO inbound */}
+      {/* Output handle only (right) — device connects to OUTPUT */}
       <Handle
         type="source"
         position={Position.Right}

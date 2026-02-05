@@ -90,9 +90,10 @@ function parseTransport(stream?: Record<string, unknown>): TransportSettings {
   if (!stream) return { ...defaultTransport };
 
   const network = (stream.network as string) || 'tcp';
+  const mappedNetwork = network === 'tcp' ? 'raw' : network;
   const security = (stream.security as string) || 'none';
   const transport: TransportSettings = {
-    network: (['tcp', 'ws', 'grpc', 'xhttp'].includes(network) ? network : 'tcp') as TransportSettings['network'],
+    network: (['raw', 'ws', 'grpc', 'xhttp'].includes(mappedNetwork) ? mappedNetwork : 'raw') as TransportSettings['network'],
     security: (['none', 'tls', 'reality'].includes(security) ? security : 'none') as TransportSettings['security'],
   };
 
@@ -162,7 +163,7 @@ function parseInboundUsers(settings: Record<string, unknown> | undefined, protoc
 function parseInbound(inbound: XrayInbound): InboundData {
   const protocol = INBOUND_PROTOCOLS.has(inbound.protocol) ? inbound.protocol : 'vless';
   return {
-    tag: inbound.tag || `inbound-${uuidv4().slice(0, 4)}`,
+    tag: inbound.tag || `input-${uuidv4().slice(0, 4)}`,
     protocol: protocol as InboundData['protocol'],
     listen: inbound.listen || '0.0.0.0',
     port: inbound.port || 443,
@@ -206,7 +207,7 @@ function parseOutbound(outbound: XrayOutbound): OutboundData {
   const isTerminal = TERMINAL_PROTOCOLS.has(protocol);
 
   return {
-    tag: outbound.tag || `outbound-${uuidv4().slice(0, 4)}`,
+    tag: outbound.tag || `output-${uuidv4().slice(0, 4)}`,
     protocol: protocol as OutboundData['protocol'],
     ...(isTerminal ? {} : addr),
     transport: isTerminal ? undefined : parseTransport(outbound.streamSettings),

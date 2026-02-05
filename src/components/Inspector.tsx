@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '@/store';
 import { useValidationStore } from '@/store/useValidationStore';
 import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, User, TransportSettings, EdgeData } from '@/types';
+import { defaultTransport } from '@/types';
 
 const inputClass = 'w-full text-sm bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-slate-200 outline-none focus:border-blue-500';
 const monoInputClass = `${inputClass} font-mono`;
@@ -113,26 +114,28 @@ function InboundPropertiesTab({ data, onChange }: { data: InboundData; onChange:
   );
 }
 
-// ── Transport Tab (shared between Inbound and Outbound Proxy) ──
+// ── Transport Panel (edge-level) ──
 
-function TransportTab({ transport, onChange }: {
+function TransportTab({ transport, onChange, disabled }: {
   transport: TransportSettings;
   onChange: (t: TransportSettings) => void;
+  disabled?: boolean;
 }) {
   const updateTransport = (updates: Partial<TransportSettings>) => {
     onChange({ ...transport, ...updates });
   };
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
       <div>
-        <label className={labelClass}>Network</label>
+        <label className={labelClass}>Transport</label>
         <select
           value={transport.network}
           onChange={(e) => updateTransport({ network: e.target.value as TransportSettings['network'] })}
           className={inputClass}
+          disabled={disabled}
         >
-          {['tcp', 'ws', 'grpc', 'xhttp'].map((n) => (
+          {['raw', 'ws', 'grpc', 'xhttp'].map((n) => (
             <option key={n} value={n}>{n.toUpperCase()}</option>
           ))}
         </select>
@@ -152,6 +155,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="/ws"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -167,6 +171,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="example.com"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
         </div>
@@ -197,6 +202,7 @@ function TransportTab({ transport, onChange }: {
                 grpcSettings: { ...transport.grpcSettings, multiMode: e.target.checked },
               })}
               className="rounded"
+              disabled={disabled}
             />
             <label htmlFor="grpc-multi" className="text-xs text-slate-400">Multi Mode</label>
           </div>
@@ -217,6 +223,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="/"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -229,6 +236,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="example.com"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
         </div>
@@ -241,6 +249,7 @@ function TransportTab({ transport, onChange }: {
           value={transport.security}
           onChange={(e) => updateTransport({ security: e.target.value as TransportSettings['security'] })}
           className={inputClass}
+          disabled={disabled}
         >
           {['none', 'tls', 'reality'].map((s) => (
             <option key={s} value={s}>{s === 'none' ? 'None' : s.toUpperCase()}</option>
@@ -262,6 +271,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="example.com"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -277,6 +287,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="h2, http/1.1"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -287,6 +298,7 @@ function TransportTab({ transport, onChange }: {
                 tlsSettings: { ...transport.tlsSettings, fingerprint: e.target.value || undefined },
               })}
               className={inputClass}
+              disabled={disabled}
             >
               <option value="">None</option>
               {['chrome', 'firefox', 'safari', 'randomized'].map((f) => (
@@ -311,6 +323,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="www.microsoft.com"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -321,6 +334,7 @@ function TransportTab({ transport, onChange }: {
                 realitySettings: { ...transport.realitySettings, fingerprint: e.target.value || undefined },
               })}
               className={inputClass}
+              disabled={disabled}
             >
               <option value="">None</option>
               {['chrome', 'firefox', 'safari', 'randomized'].map((f) => (
@@ -337,6 +351,7 @@ function TransportTab({ transport, onChange }: {
                 realitySettings: { ...transport.realitySettings, publicKey: e.target.value || undefined },
               })}
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -348,6 +363,7 @@ function TransportTab({ transport, onChange }: {
                 realitySettings: { ...transport.realitySettings, shortId: e.target.value || undefined },
               })}
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
           <div>
@@ -360,6 +376,7 @@ function TransportTab({ transport, onChange }: {
               })}
               placeholder="/"
               className={monoInputClass}
+              disabled={disabled}
             />
           </div>
         </div>
@@ -667,7 +684,7 @@ function RoutingInspector({ data, onChange }: { data: RoutingData; onChange: (d:
         </select>
       </div>
       <div>
-        <label className={labelClass}>Inbound Tag</label>
+        <label className={labelClass}>INPUT Tag</label>
         <input
           type="text"
           value={data.inboundTag || ''}
@@ -802,7 +819,7 @@ function NodeValidationPanel({ nodeId }: { nodeId: string }) {
 
 // ── Tab definitions ──
 
-type TabId = 'properties' | 'transport' | 'users' | 'json';
+type TabId = 'properties' | 'users' | 'json';
 
 interface TabDef {
   id: TabId;
@@ -816,7 +833,6 @@ function getTabsForNode(nodeData: XrayNodeData): TabDef[] {
   if (nodeData.nodeType === 'inbound') {
     return [
       { id: 'properties', label: 'Props' },
-      { id: 'transport', label: 'Transport' },
       { id: 'users', label: 'Users' },
       { id: 'json', label: 'JSON' },
     ];
@@ -824,7 +840,6 @@ function getTabsForNode(nodeData: XrayNodeData): TabDef[] {
   if (nodeData.nodeType === 'outbound-proxy') {
     return [
       { id: 'properties', label: 'Props' },
-      { id: 'transport', label: 'Transport' },
       { id: 'json', label: 'JSON' },
     ];
   }
@@ -839,11 +854,11 @@ function getTabsForNode(nodeData: XrayNodeData): TabDef[] {
 
 const nodeTypeLabels: Record<string, { label: string; color: string }> = {
   device: { label: 'Device', color: 'text-cyan-400' },
-  inbound: { label: 'Inbound', color: 'text-node-inbound' },
+  inbound: { label: 'INPUT', color: 'text-node-inbound' },
   routing: { label: 'Routing', color: 'text-node-routing' },
   balancer: { label: 'Balancer', color: 'text-node-balancer' },
-  'outbound-terminal': { label: 'Terminal', color: 'text-node-terminal' },
-  'outbound-proxy': { label: 'Proxy Outbound', color: 'text-node-proxy' },
+  'outbound-terminal': { label: 'OUTPUT (Terminal)', color: 'text-node-terminal' },
+  'outbound-proxy': { label: 'OUTPUT (Proxy)', color: 'text-node-proxy' },
 };
 
 // ── Edge Inspector ──
@@ -862,6 +877,34 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 
   const sourceNode = nodes.find((n) => n.id === edge.source);
   const targetNode = nodes.find((n) => n.id === edge.target);
+  const getServerId = (n: typeof sourceNode) => {
+    if (!n) return undefined;
+    const data = n.data as Record<string, unknown>;
+    return typeof data.serverId === 'string' ? data.serverId : undefined;
+  };
+  const sourceServerId = getServerId(sourceNode);
+  const targetServerId = getServerId(targetNode);
+  const isInternalEdge = sourceServerId === targetServerId;
+  const transport = edgeData.transport || { ...defaultTransport };
+
+  useEffect(() => {
+    if (!edgeData.transport) {
+      updateEdgeData(edgeId, { ...edgeData, transport: { ...defaultTransport } });
+    }
+    if (edgeData.transport?.network === 'tcp') {
+      updateEdgeData(edgeId, {
+        ...edgeData,
+        transport: { ...edgeData.transport, network: 'raw' },
+      });
+    }
+  }, [edgeId, edgeData, updateEdgeData]);
+
+  useEffect(() => {
+    if (!isInternalEdge) return;
+    if (edgeData.transport?.network !== 'raw' || edgeData.transport?.security !== 'none') {
+      updateEdgeData(edgeId, { ...edgeData, transport: { network: 'raw', security: 'none' } });
+    }
+  }, [edgeId, edgeData, isInternalEdge, updateEdgeData]);
   const getNodeLabel = (n: typeof sourceNode) => {
     if (!n) return '';
     const d = n.data as XrayNodeData;
@@ -921,6 +964,21 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
               Conditional
             </button>
           </div>
+        </div>
+
+        {/* Transport */}
+        <div>
+          <label className={labelClass}>Transport</label>
+          <div className="text-[10px] text-slate-500 mb-2">
+            {isInternalEdge
+              ? 'Internal edge (same server group) — transport is fixed to RAW.'
+              : 'Cross-group edge — choose transport + security for the network hop.'}
+          </div>
+          <TransportTab
+            transport={transport}
+            onChange={(t) => updateEdgeData(edgeId, { ...edgeData, transport: t })}
+            disabled={isInternalEdge}
+          />
         </div>
 
         {/* Label */}
@@ -1059,25 +1117,6 @@ export default function Inspector() {
         }
         if (nodeData.nodeType === 'outbound-terminal' || nodeData.nodeType === 'outbound-proxy') {
           return <OutboundPropertiesTab data={nodeData} onChange={handleChange} />;
-        }
-        return null;
-
-      case 'transport':
-        if (nodeData.nodeType === 'inbound') {
-          return (
-            <TransportTab
-              transport={nodeData.transport || { network: 'tcp', security: 'none' }}
-              onChange={(t) => handleChange({ transport: t })}
-            />
-          );
-        }
-        if (nodeData.nodeType === 'outbound-proxy') {
-          return (
-            <TransportTab
-              transport={nodeData.transport || { network: 'tcp', security: 'none' }}
-              onChange={(t) => handleChange({ transport: t })}
-            />
-          );
         }
         return null;
 

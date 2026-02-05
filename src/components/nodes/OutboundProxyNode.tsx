@@ -14,17 +14,6 @@ const protocolIcons: Record<string, string> = {
   shadowsocks: '🔮',
 };
 
-const transportBadge: Record<string, string> = {
-  ws: '〰️',
-  grpc: '📦',
-  xhttp: '⚡',
-};
-
-const securityBadge: Record<string, string> = {
-  tls: '🔒',
-  reality: '🎭',
-};
-
 function OutboundProxyNode({ id, data, selected }: NodeProps & { data: ProxyNodeData }) {
   const nodeData = data as ProxyNodeData;
   const serverAddr = nodeData.serverAddress
@@ -37,14 +26,13 @@ function OutboundProxyNode({ id, data, selected }: NodeProps & { data: ProxyNode
         selected ? 'border-white ring-2 ring-white/30' : 'border-node-proxy/50 hover:border-node-proxy hover:shadow-[0_0_12px_rgba(249,115,22,0.3)]'
       }`}
       style={{ background: 'linear-gradient(135deg, #9a3412 0%, #7c2d12 100%)' }}
-      title={`${nodeData.protocol.toUpperCase()} Proxy — ${nodeData.tag || 'unnamed'}\nServer: ${serverAddr}`}
+      title={`${nodeData.protocol.toUpperCase()} OUTPUT (Proxy) — ${nodeData.tag || 'unnamed'}\nServer: ${serverAddr}`}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-node-proxy/30">
         <span className="text-lg">{protocolIcons[nodeData.protocol] || '🔒'}</span>
-        <span className="font-semibold text-sm text-orange-200 uppercase">
-          {nodeData.protocol}
-        </span>
+        <span className="font-semibold text-sm text-orange-200 uppercase">{nodeData.protocol}</span>
+        <span className="text-[10px] text-orange-300/80 tracking-widest">OUTPUT</span>
       </div>
 
       {/* Body */}
@@ -56,19 +44,6 @@ function OutboundProxyNode({ id, data, selected }: NodeProps & { data: ProxyNode
           {serverAddr}
         </div>
 
-        {/* Badges */}
-        <div className="flex gap-1 flex-wrap">
-          {nodeData.transport?.network && nodeData.transport.network !== 'tcp' && (
-            <span className="text-[10px] bg-orange-800/60 text-orange-200 px-1.5 py-0.5 rounded">
-              {transportBadge[nodeData.transport.network] || ''} {nodeData.transport.network}
-            </span>
-          )}
-          {nodeData.transport?.security && nodeData.transport.security !== 'none' && (
-            <span className="text-[10px] bg-orange-800/60 text-orange-200 px-1.5 py-0.5 rounded">
-              {securityBadge[nodeData.transport.security] || ''} {nodeData.transport.security}
-            </span>
-          )}
-        </div>
       </div>
 
       <ValidationBadge nodeId={id} />
@@ -79,7 +54,7 @@ function OutboundProxyNode({ id, data, selected }: NodeProps & { data: ProxyNode
         position={Position.Left}
         className="!w-3 !h-3 !bg-node-proxy !border-2 !border-orange-300"
       />
-      {/* Output handle — proxy nodes can connect to inbound on another server */}
+      {/* Output handle — proxy nodes can connect to INPUT on another server */}
       <Handle
         type="source"
         position={Position.Right}

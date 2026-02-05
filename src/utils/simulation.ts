@@ -167,7 +167,7 @@ function describeNode(node: XrayNode): string {
     case 'device':
       return `Device (${d.connectionType})`;
     case 'inbound': {
-      return `${d.protocol.toUpperCase()} Inbound :${d.port}`;
+      return `${d.protocol.toUpperCase()} INPUT :${d.port}`;
     }
     case 'routing': {
       const rules: string[] = [];
@@ -181,9 +181,9 @@ function describeNode(node: XrayNode): string {
     case 'balancer':
       return `Balancer (${d.strategy})`;
     case 'outbound-terminal':
-      return `${d.protocol.charAt(0).toUpperCase() + d.protocol.slice(1)} (terminal)`;
+      return `${d.protocol.charAt(0).toUpperCase() + d.protocol.slice(1)} OUTPUT (terminal)`;
     case 'outbound-proxy':
-      return `Proxy ${d.protocol.toUpperCase()} → ${d.serverAddress || '?'}:${d.serverPort || '?'}`;
+      return `OUTPUT ${d.protocol.toUpperCase()} → ${d.serverAddress || '?'}:${d.serverPort || '?'}`;
   }
 }
 
@@ -210,7 +210,7 @@ export function runSimulation(
       highlightNodeIds: [],
       highlightEdgeIds: [],
       finalOutbound: null,
-      explanation: `Inbound "${input.inboundTag}" not found.`,
+      explanation: `INPUT "${input.inboundTag}" not found.`,
     };
   }
 

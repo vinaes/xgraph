@@ -97,8 +97,8 @@ function ConfigsTab({ results }: { results: ExportResult[] }) {
       {/* Stats */}
       {selectedResult && (
         <div className="flex gap-4 text-xs">
-          <span className="text-green-400">{inboundCount} inbound{inboundCount !== 1 ? 's' : ''}</span>
-          <span className="text-red-400">{outboundCount} outbound{outboundCount !== 1 ? 's' : ''}</span>
+          <span className="text-green-400">{inboundCount} input{inboundCount !== 1 ? 's' : ''}</span>
+          <span className="text-red-400">{outboundCount} output{outboundCount !== 1 ? 's' : ''}</span>
           <span className="text-blue-400">{ruleCount} rule{ruleCount !== 1 ? 's' : ''}</span>
         </div>
       )}
@@ -388,9 +388,10 @@ function ClientConfigsTab() {
   // Use the first server's address as default, or fallback
   const serverAddress = servers.length > 0 ? servers[0]!.host : undefined;
 
+  const edges = useStore((s) => s.edges);
   const clientConfigs: ClientConfigResult[] = useMemo(() =>
-    generateClientConfigs(nodes, serverAddress),
-    [nodes, serverAddress]
+    generateClientConfigs(nodes, edges, serverAddress),
+    [nodes, edges, serverAddress]
   );
 
   const selectedConfig = clientConfigs[selectedIndex];
@@ -411,7 +412,7 @@ function ClientConfigsTab() {
       <div className="text-slate-400 text-center py-8">
         <p>No client configs available.</p>
         <p className="text-xs mt-1 text-slate-500">
-          Add users to VLESS, VMess, or Trojan inbound nodes to generate client configs.
+          Add users to VLESS, VMess, or Trojan INPUT nodes to generate client configs.
         </p>
       </div>
     );
@@ -539,7 +540,7 @@ export default function ExportDialog({ open, onClose }: ExportDialogProps) {
   const serverAddress = servers.length > 0 ? servers[0]!.host : undefined;
   const clientConfigs = useMemo(() => {
     try {
-      return generateClientConfigs(nodes, serverAddress);
+      return generateClientConfigs(nodes, edges, serverAddress);
     } catch (err) {
       console.error('Client config generation failed:', err);
       return [];

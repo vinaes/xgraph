@@ -301,7 +301,7 @@ function ImportSummaryView({ summary, onClose }: { summary: ImportSummary; onClo
           <div className="flex items-center gap-2 text-xs">
             <span className="text-green-400">&#10003;</span>
             <span className="text-slate-300">
-              Created {summary.inboundCount} inbound node{summary.inboundCount !== 1 ? 's' : ''}
+              Created {summary.inboundCount} INPUT node{summary.inboundCount !== 1 ? 's' : ''}
             </span>
           </div>
         )}
@@ -309,7 +309,7 @@ function ImportSummaryView({ summary, onClose }: { summary: ImportSummary; onClo
           <div className="flex items-center gap-2 text-xs">
             <span className="text-green-400">&#10003;</span>
             <span className="text-slate-300">
-              Created {summary.outboundCount} outbound node{summary.outboundCount !== 1 ? 's' : ''}
+              Created {summary.outboundCount} OUTPUT node{summary.outboundCount !== 1 ? 's' : ''}
             </span>
           </div>
         )}

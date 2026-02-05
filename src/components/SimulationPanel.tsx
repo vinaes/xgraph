@@ -35,7 +35,7 @@ export default function SimulationPanel({ onClose }: SimulationPanelProps) {
   const setInput = useSimulationStore((s) => s.setInput);
   const setResult = useSimulationStore((s) => s.setResult);
 
-  // Get all inbound tags for the dropdown
+  // Get all INPUT tags for the dropdown
   const inboundTags = useMemo(() => {
     return nodes
       .filter((n) => (n.data as XrayNodeData).nodeType === 'inbound')
@@ -48,7 +48,7 @@ export default function SimulationPanel({ onClose }: SimulationPanelProps) {
       });
   }, [nodes]);
 
-  // Auto-select first inbound if none set
+  // Auto-select first INPUT if none set
   const selectedTag = input.inboundTag || (inboundTags[0]?.tag ?? '');
 
   const handleRun = useCallback(() => {
@@ -123,14 +123,14 @@ export default function SimulationPanel({ onClose }: SimulationPanelProps) {
         </div>
 
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Start from inbound</label>
+          <label className="block text-xs text-slate-400 mb-1">Start from INPUT</label>
           <select
             value={selectedTag}
             onChange={(e) => setInput({ inboundTag: e.target.value })}
             className="w-full bg-slate-800 border border-slate-600 text-sm text-slate-200 rounded px-2 py-1.5 outline-none focus:border-blue-500"
           >
             {inboundTags.length === 0 && (
-              <option value="">No inbound nodes</option>
+              <option value="">No INPUT nodes</option>
             )}
             {inboundTags.map((ib) => (
               <option key={ib.tag} value={ib.tag}>
@@ -237,7 +237,7 @@ function SimulationResults({
       {/* Final destination */}
       {result.finalOutbound && (
         <div className="text-xs text-slate-500">
-          Final outbound: <span className="text-slate-300 font-mono">{result.finalOutbound}</span>
+          Final OUTPUT: <span className="text-slate-300 font-mono">{result.finalOutbound}</span>
         </div>
       )}
     </div>

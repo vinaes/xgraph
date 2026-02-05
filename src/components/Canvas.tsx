@@ -139,7 +139,7 @@ export default function Canvas() {
           data = {
             nodeType: 'inbound',
             ...createDefaultInboundData(protocol as 'vless'),
-            tag: `inbound-${protocol}-${Date.now().toString(36)}`,
+            tag: `input-${protocol}-${Date.now().toString(36)}`,
           };
           break;
         case 'routing':
@@ -160,14 +160,14 @@ export default function Canvas() {
           data = {
             nodeType: 'outbound-terminal',
             ...createDefaultOutboundData(protocol as 'freedom'),
-            tag: `${protocol}-${Date.now().toString(36)}`,
+            tag: `output-${protocol}-${Date.now().toString(36)}`,
           };
           break;
         case 'outbound-proxy':
           data = {
             nodeType: 'outbound-proxy',
             ...createDefaultOutboundData(protocol as 'vless'),
-            tag: `proxy-${protocol}-${Date.now().toString(36)}`,
+            tag: `output-${protocol}-${Date.now().toString(36)}`,
           };
           break;
         default:
@@ -194,15 +194,15 @@ export default function Canvas() {
       },
       { label: '', onClick: () => {}, separator: true },
       {
-        label: 'Add VLESS Inbound',
+        label: 'Add VLESS INPUT',
         onClick: () => createQuickNode(dropX, dropY, 'inbound', 'vless'),
       },
       {
-        label: 'Add VMess Inbound',
+        label: 'Add VMess INPUT',
         onClick: () => createQuickNode(dropX, dropY, 'inbound', 'vmess'),
       },
       {
-        label: 'Add Trojan Inbound',
+        label: 'Add Trojan INPUT',
         onClick: () => createQuickNode(dropX, dropY, 'inbound', 'trojan'),
       },
       { label: '', onClick: () => {}, separator: true },
@@ -216,15 +216,15 @@ export default function Canvas() {
       },
       { label: '', onClick: () => {}, separator: true },
       {
-        label: 'Add Freedom',
+        label: 'Add Freedom OUTPUT',
         onClick: () => createQuickNode(dropX, dropY, 'outbound-terminal', 'freedom'),
       },
       {
-        label: 'Add Blackhole',
+        label: 'Add Blackhole OUTPUT',
         onClick: () => createQuickNode(dropX, dropY, 'outbound-terminal', 'blackhole'),
       },
       {
-        label: 'Add Proxy Outbound',
+        label: 'Add Proxy OUTPUT',
         onClick: () => createQuickNode(dropX, dropY, 'outbound-proxy', 'vless'),
       },
     ],

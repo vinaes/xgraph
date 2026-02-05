@@ -7,17 +7,18 @@ type GraphNode = Node<XrayNodeData>;
  * Connection validation rules per the xray graph spec:
  *
  * Allowed:
- *   Inbound → Routing
- *   Inbound → Outbound (direct, bypasses routing)
+ *   Input → Routing
+ *   Input → Output (direct, bypasses routing)
  *   Routing → Routing (fallback/chaining)
  *   Routing → Balancer
- *   Routing → Outbound
- *   Balancer → Outbound (multiple)
- *   Outbound Proxy → Inbound (cross-server chain, infrastructure mode)
+ *   Routing → Output
+ *   Balancer → Output (multiple)
+ *   Output Proxy → Input (cross-server chain, infrastructure mode)
+ *   Device → Output (client side)
  *
  * Forbidden:
- *   Terminal Outbound → anything (freedom/blackhole/dns have no outgoing)
- *   Anything → Inbound (except outbound-proxy → inbound for proxy chains)
+ *   Terminal OUTPUT → anything (freedom/blackhole/dns have no outgoing)
+ *   Anything → INPUT (except outbound-proxy → inbound for proxy chains)
  *   Cycles (except reverse proxy cases — not enforced here)
  */
 export function isValidConnection(
@@ -31,17 +32,17 @@ export function isValidConnection(
   if (sourceType === 'outbound-terminal') {
     return {
       valid: false,
-      reason: 'Terminal outbound nodes (freedom/blackhole/dns) cannot have outgoing connections',
+      reason: 'Terminal OUTPUT nodes (freedom/blackhole/dns) cannot have outgoing connections',
     };
   }
 
   // Define allowed connections
   const allowed: Record<string, string[]> = {
-    device: ['inbound'], // device can only connect to inbound nodes
+    device: ['outbound-proxy'], // device connects to OUTPUT on client side
     inbound: ['routing', 'balancer', 'outbound-terminal', 'outbound-proxy'],
     routing: ['routing', 'balancer', 'outbound-terminal', 'outbound-proxy'],
     balancer: ['outbound-terminal', 'outbound-proxy'],
-    'outbound-proxy': ['inbound'], // proxy chain: outbound on server A → inbound on server B
+    'outbound-proxy': ['inbound'], // proxy chain: OUTPUT on server A → INPUT on server B
   };
 
   const allowedTargets = allowed[sourceType];

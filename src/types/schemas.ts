@@ -32,7 +32,7 @@ export const RealitySettingsSchema = z.object({
 });
 
 export const TransportSettingsSchema = z.object({
-  network: z.enum(['tcp', 'ws', 'grpc', 'xhttp']),
+  network: z.enum(['raw', 'ws', 'grpc', 'xhttp']),
   wsSettings: WsSettingsSchema.optional(),
   grpcSettings: GrpcSettingsSchema.optional(),
   xhttpSettings: XhttpSettingsSchema.optional(),
@@ -74,7 +74,8 @@ export const InboundDataSchema = z.object({
   port: z.number().min(1).max(65535),
   sniffing: z.boolean().optional(),
   users: z.array(UserSchema).optional(),
-  transport: TransportSettingsSchema,
+  // Legacy: transport moved to edges
+  transport: TransportSettingsSchema.optional(),
   serverId: z.string().optional(),
 });
 
@@ -102,6 +103,7 @@ export const OutboundDataSchema = z.object({
   serverAddress: z.string().optional(),
   serverPort: z.number().min(1).max(65535).optional(),
   settings: z.any().optional(),
+  // Legacy: transport moved to edges
   transport: TransportSettingsSchema.optional(),
   serverId: z.string().optional(),
 });
@@ -136,6 +138,7 @@ export const ServerSchema = z.object({
 export const EdgeDataSchema = z.object({
   priority: z.number().optional(),
   label: z.string().optional(),
+  transport: TransportSettingsSchema.optional(),
 });
 
 export const EdgeType = z.enum(['default', 'conditional']);
@@ -193,7 +196,7 @@ export type XrayNodeData =
 // ── Defaults ──
 
 export const defaultTransport: TransportSettings = {
-  network: 'tcp',
+  network: 'raw',
   security: 'none',
 };
 
@@ -203,7 +206,6 @@ export function createDefaultInboundData(protocol: InboundData['protocol'] = 'vl
     protocol,
     listen: '0.0.0.0',
     port: 443,
-    transport: { ...defaultTransport },
   };
 }
 
@@ -234,8 +236,5 @@ export function createDefaultOutboundData(
   return {
     tag: '',
     protocol,
-    transport: protocol === 'freedom' || protocol === 'blackhole' || protocol === 'dns'
-      ? undefined
-      : { ...defaultTransport },
   };
 }

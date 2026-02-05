@@ -8,6 +8,7 @@ import type {
   TransportSettings,
   Server,
   User,
+  EdgeData,
 } from '@/types';
 
 // Keep ProjectMode as optional param type for backwards compat
@@ -68,9 +69,11 @@ export interface ExportResult {
 
 // ── Transport/StreamSettings Builder ──
 
-function buildStreamSettings(transport: TransportSettings): Record<string, unknown> {
+function buildStreamSettings(transport?: TransportSettings): Record<string, unknown> {
+  if (!transport) return {};
+  const network = transport.network === 'raw' ? 'tcp' : transport.network;
   const stream: Record<string, unknown> = {
-    network: transport.network,
+    network,
     security: transport.security,
   };
 
@@ -280,6 +283,46 @@ function findTargetNode(nodeId: string, nodes: GraphNode[]): GraphNode | undefin
   return nodes.find((n) => n.id === nodeId);
 }
 
+function getServerId(node: GraphNode | undefined): string | undefined {
+  if (!node) return undefined;
+  const data = node.data as Record<string, unknown>;
+  return typeof data.serverId === 'string' ? data.serverId : undefined;
+}
+
+function isCrossGroupEdge(edge: GraphEdge, nodeServerMap: Map<string, string | undefined>): boolean {
+  const sourceServer = nodeServerMap.get(edge.source);
+  const targetServer = nodeServerMap.get(edge.target);
+  return sourceServer !== targetServer;
+}
+
+function getIncomingTransport(
+  nodeId: string,
+  edges: GraphEdge[],
+  nodeServerMap: Map<string, string | undefined>
+): TransportSettings | undefined {
+  for (const edge of edges) {
+    if (edge.target !== nodeId) continue;
+    if (!isCrossGroupEdge(edge, nodeServerMap)) continue;
+    const transport = (edge.data as EdgeData | undefined)?.transport;
+    if (transport) return transport;
+  }
+  return undefined;
+}
+
+function getOutgoingTransport(
+  nodeId: string,
+  edges: GraphEdge[],
+  nodeServerMap: Map<string, string | undefined>
+): TransportSettings | undefined {
+  for (const edge of edges) {
+    if (edge.source !== nodeId) continue;
+    if (!isCrossGroupEdge(edge, nodeServerMap)) continue;
+    const transport = (edge.data as EdgeData | undefined)?.transport;
+    if (transport) return transport;
+  }
+  return undefined;
+}
+
 // ── Routing Rule Builder ──
 
 function buildRoutingRules(
@@ -409,6 +452,7 @@ export function exportConfig(
 ): ExportResult[] {
   // Filter out device nodes — UI-only, not part of xray config
   const configNodes = nodes.filter((n) => getNodeData(n).nodeType !== 'device');
+  const nodeServerMap = new Map(nodes.map((n) => [n.id, getServerId(n)]));
 
   const serverMap = new Map(servers.map((s) => [s.id, s]));
 
@@ -429,7 +473,7 @@ export function exportConfig(
 
   // If no nodes are assigned to any server, export single config with all nodes
   if (nodesByServer.size === 0) {
-    return [buildSingleConfig(configNodes, edges, 'config.json')];
+    return [buildSingleConfig(configNodes, edges, edges, nodeServerMap, 'config.json')];
   }
 
   const results: ExportResult[] = [];
@@ -443,7 +487,7 @@ export function exportConfig(
       (e) => serverNodeIds.has(e.source) && serverNodeIds.has(e.target)
     );
     const safeName = server.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-    results.push(buildSingleConfig(serverNodes, serverEdges, `${safeName}_config.json`));
+    results.push(buildSingleConfig(serverNodes, serverEdges, edges, nodeServerMap, `${safeName}_config.json`));
   }
 
   // Unassigned nodes go into a separate config
@@ -452,7 +496,7 @@ export function exportConfig(
     const unassignedEdges = edges.filter(
       (e) => unassignedIds.has(e.source) && unassignedIds.has(e.target)
     );
-    results.push(buildSingleConfig(unassigned, unassignedEdges, 'unassigned_config.json'));
+    results.push(buildSingleConfig(unassigned, unassignedEdges, edges, nodeServerMap, 'unassigned_config.json'));
   }
 
   return results;
@@ -461,6 +505,8 @@ export function exportConfig(
 function buildSingleConfig(
   nodes: GraphNode[],
   edges: GraphEdge[],
+  allEdges: GraphEdge[],
+  nodeServerMap: Map<string, string | undefined>,
   filename: string
 ): ExportResult {
   // Build inbounds
@@ -469,7 +515,8 @@ function buildSingleConfig(
 
   for (const node of inboundNodes) {
     const data = getNodeData(node) as InboundData & { nodeType: 'inbound' };
-    const streamSettings = buildStreamSettings(data.transport);
+    const edgeTransport = getIncomingTransport(node.id, allEdges, nodeServerMap);
+    const streamSettings = buildStreamSettings(edgeTransport || data.transport);
 
     const inbound: XrayInbound = {
       tag: data.tag,
@@ -516,11 +563,12 @@ function buildSingleConfig(
       outbound.settings = settings;
     }
 
-    if (data.transport) {
-      const streamSettings = buildStreamSettings(data.transport);
-      if (Object.keys(streamSettings).length > 0) {
-        outbound.streamSettings = streamSettings;
-      }
+    const edgeTransport = data.nodeType === 'outbound-proxy'
+      ? getOutgoingTransport(node.id, allEdges, nodeServerMap)
+      : undefined;
+    const streamSettings = buildStreamSettings(edgeTransport || data.transport);
+    if (Object.keys(streamSettings).length > 0) {
+      outbound.streamSettings = streamSettings;
     }
 
     outbounds.push(outbound);

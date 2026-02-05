@@ -13,17 +13,6 @@ const protocolIcons: Record<string, string> = {
   'dokodemo-door': '🚪',
 };
 
-const transportBadge: Record<string, string> = {
-  ws: '〰️',
-  grpc: '📦',
-  xhttp: '⚡',
-};
-
-const securityBadge: Record<string, string> = {
-  tls: '🔒',
-  reality: '🎭',
-};
-
 type InboundNodeData = { nodeType: 'inbound' } & InboundData;
 
 function InboundNode({ id, data, selected }: NodeProps & { data: InboundNodeData }) {
@@ -34,14 +23,13 @@ function InboundNode({ id, data, selected }: NodeProps & { data: InboundNodeData
         selected ? 'border-white ring-2 ring-white/30' : 'border-node-inbound/50 hover:border-node-inbound hover:shadow-[0_0_12px_rgba(34,197,94,0.3)]'
       }`}
       style={{ background: 'linear-gradient(135deg, #166534 0%, #14532d 100%)' }}
-      title={`${nodeData.protocol.toUpperCase()} Inbound — ${nodeData.tag || 'unnamed'}\nPort: ${nodeData.port}${nodeData.users?.length ? `\nUsers: ${nodeData.users.length}` : ''}`}
+      title={`${nodeData.protocol.toUpperCase()} INPUT — ${nodeData.tag || 'unnamed'}\nPort: ${nodeData.port}${nodeData.users?.length ? `\nUsers: ${nodeData.users.length}` : ''}`}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-node-inbound/30">
         <span className="text-lg">{protocolIcons[nodeData.protocol] || '📡'}</span>
-        <span className="font-semibold text-sm text-green-200 uppercase">
-          {nodeData.protocol}
-        </span>
+        <span className="font-semibold text-sm text-green-200 uppercase">{nodeData.protocol}</span>
+        <span className="text-[10px] text-green-300/80 tracking-widest">INPUT</span>
         <span className="ml-auto text-xs bg-node-inbound/30 text-green-100 px-2 py-0.5 rounded-full font-mono">
           :{nodeData.port}
         </span>
@@ -54,28 +42,18 @@ function InboundNode({ id, data, selected }: NodeProps & { data: InboundNodeData
         </div>
 
         {/* Badges */}
-        <div className="flex gap-1 flex-wrap">
-          {nodeData.transport?.network && nodeData.transport.network !== 'tcp' && (
-            <span className="text-[10px] bg-green-800/60 text-green-200 px-1.5 py-0.5 rounded">
-              {transportBadge[nodeData.transport.network] || ''} {nodeData.transport.network}
-            </span>
-          )}
-          {nodeData.transport?.security && nodeData.transport.security !== 'none' && (
-            <span className="text-[10px] bg-green-800/60 text-green-200 px-1.5 py-0.5 rounded">
-              {securityBadge[nodeData.transport.security] || ''} {nodeData.transport.security}
-            </span>
-          )}
-          {nodeData.users && nodeData.users.length > 0 && (
+        {nodeData.users && nodeData.users.length > 0 && (
+          <div className="flex gap-1 flex-wrap">
             <span className="text-[10px] bg-green-800/60 text-green-200 px-1.5 py-0.5 rounded">
               👤 {nodeData.users.length}
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ValidationBadge nodeId={id} />
 
-      {/* Input handle (left) - for proxy→inbound connections */}
+      {/* Input handle (left) - for OUTPUT→INPUT connections */}
       <Handle
         type="target"
         position={Position.Left}

@@ -54,7 +54,7 @@ const simpleVpn: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'none' },
+        transport: { network: 'raw', security: 'none' },
       },
     },
     {
@@ -69,7 +69,7 @@ const simpleVpn: Template = {
     },
   ],
   edges: [{ source: 'in1', target: 'out1' }],
-  summary: ['1 VLESS Inbound (port 443)', '1 Freedom Outbound (direct)'],
+  summary: ['1 VLESS INPUT (port 443)', '1 Freedom OUTPUT (direct)'],
 };
 
 const secureVpn: Template = {
@@ -91,7 +91,7 @@ const secureVpn: Template = {
         listen: '0.0.0.0',
         port: 443,
         transport: {
-          network: 'tcp',
+          network: 'raw',
           security: 'tls',
           tlsSettings: { serverName: 'example.com' },
         },
@@ -109,7 +109,7 @@ const secureVpn: Template = {
     },
   ],
   edges: [{ source: 'in1', target: 'out1' }],
-  summary: ['1 VLESS Inbound with TLS (port 443)', '1 Freedom Outbound'],
+  summary: ['1 VLESS INPUT with TLS (port 443)', '1 Freedom OUTPUT'],
 };
 
 const stealthVpn: Template = {
@@ -153,7 +153,7 @@ const stealthVpn: Template = {
     },
   ],
   edges: [{ source: 'in1', target: 'out1' }],
-  summary: ['1 VLESS Inbound with Reality + XHTTP', '1 Freedom Outbound'],
+  summary: ['1 VLESS INPUT with Reality + XHTTP', '1 Freedom OUTPUT'],
 };
 
 // ── Routing Templates ──
@@ -176,7 +176,7 @@ const geoRouting: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'example.com' } },
       },
     },
     {
@@ -218,7 +218,7 @@ const geoRouting: Template = {
         protocol: 'vless',
         serverAddress: 'proxy.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'proxy.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'proxy.example.com' } },
       },
     },
   ],
@@ -228,7 +228,7 @@ const geoRouting: Template = {
     { source: 'rule1', target: 'out1' },
     { source: 'rule2', target: 'out2' },
   ],
-  summary: ['1 VLESS Inbound', '2 Routing Rules (domestic + international)', '1 Freedom + 1 Proxy Outbound'],
+  summary: ['1 VLESS INPUT', '2 Routing Rules (domestic + international)', '1 Freedom + 1 Proxy OUTPUT'],
 };
 
 const splitTunneling: Template = {
@@ -249,7 +249,7 @@ const splitTunneling: Template = {
         protocol: 'socks',
         listen: '127.0.0.1',
         port: 1080,
-        transport: { network: 'tcp', security: 'none' },
+        transport: { network: 'raw', security: 'none' },
       },
     },
     {
@@ -301,7 +301,7 @@ const splitTunneling: Template = {
     { source: 'rule1', target: 'out1' },
     { source: 'rule2', target: 'out2' },
   ],
-  summary: ['1 SOCKS Inbound (localhost:1080)', '2 Routing Rules (domain-based)', '1 Proxy + 1 Direct Outbound'],
+  summary: ['1 SOCKS INPUT (localhost:1080)', '2 Routing Rules (domain-based)', '1 Proxy + 1 Direct OUTPUT'],
 };
 
 const appRouting: Template = {
@@ -322,7 +322,7 @@ const appRouting: Template = {
         protocol: 'socks',
         listen: '127.0.0.1',
         port: 1080,
-        transport: { network: 'tcp', security: 'none' },
+        transport: { network: 'raw', security: 'none' },
       },
     },
     {
@@ -364,7 +364,7 @@ const appRouting: Template = {
         protocol: 'vless',
         serverAddress: 'proxy.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'proxy.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'proxy.example.com' } },
       },
     },
     {
@@ -396,7 +396,7 @@ const appRouting: Template = {
     { source: 'rule2', target: 'out2' },
     { source: 'rule3', target: 'out3' },
   ],
-  summary: ['1 SOCKS Inbound', '3 Routing Rules (HTTP/BitTorrent/other)', '1 Proxy + 1 Blackhole + 1 Freedom'],
+  summary: ['1 SOCKS INPUT', '3 Routing Rules (HTTP/BitTorrent/other)', '1 Proxy + 1 Blackhole + 1 Freedom'],
 };
 
 // ── Infrastructure Templates ──
@@ -432,7 +432,7 @@ const twoServerChain: Template = {
         protocol: 'vless',
         serverAddress: 'exit.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
       },
     },
     {
@@ -445,7 +445,7 @@ const twoServerChain: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
       },
     },
     {
@@ -463,7 +463,7 @@ const twoServerChain: Template = {
     { source: 'in1', target: 'proxy1' },
     { source: 'in2', target: 'out1' },
   ],
-  summary: ['Entry server: VLESS Inbound (WS+TLS) → Proxy Outbound', 'Exit server: VLESS Inbound → Freedom'],
+  summary: ['Entry server: VLESS INPUT (WS+TLS) → Proxy OUTPUT', 'Exit server: VLESS INPUT → Freedom'],
 };
 
 const threeServerChain: Template = {
@@ -497,7 +497,7 @@ const threeServerChain: Template = {
         protocol: 'vless',
         serverAddress: 'relay.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'relay.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'relay.example.com' } },
       },
     },
     {
@@ -510,7 +510,7 @@ const threeServerChain: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'relay.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'relay.example.com' } },
       },
     },
     {
@@ -523,7 +523,7 @@ const threeServerChain: Template = {
         protocol: 'vless',
         serverAddress: 'exit.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
       },
     },
     {
@@ -536,7 +536,7 @@ const threeServerChain: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
       },
     },
     {
@@ -576,7 +576,7 @@ const loadBalanced: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'entry.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'entry.example.com' } },
       },
     },
     {
@@ -600,7 +600,7 @@ const loadBalanced: Template = {
         protocol: 'vless',
         serverAddress: 'exit1.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit1.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit1.example.com' } },
       },
     },
     {
@@ -613,7 +613,7 @@ const loadBalanced: Template = {
         protocol: 'vless',
         serverAddress: 'exit2.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit2.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit2.example.com' } },
       },
     },
     {
@@ -626,7 +626,7 @@ const loadBalanced: Template = {
         protocol: 'vless',
         serverAddress: 'exit3.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit3.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit3.example.com' } },
       },
     },
     {
@@ -639,7 +639,7 @@ const loadBalanced: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
       },
     },
     {
@@ -660,7 +660,7 @@ const loadBalanced: Template = {
     { source: 'bal1', target: 'out3' },
     { source: 'exit-in1', target: 'freedom1' },
   ],
-  summary: ['1 VLESS Inbound (TLS)', '1 Balancer (round-robin)', '3 Proxy Outbounds (exit servers)', 'Exit server: VLESS Inbound → Freedom'],
+  summary: ['1 VLESS INPUT (TLS)', '1 Balancer (round-robin)', '3 Proxy OUTPUTs (exit servers)', 'Exit server: VLESS INPUT → Freedom'],
 };
 
 const geoDistributed: Template = {
@@ -681,7 +681,7 @@ const geoDistributed: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'entry.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'entry.example.com' } },
       },
     },
     {
@@ -713,7 +713,7 @@ const geoDistributed: Template = {
         protocol: 'vless',
         serverAddress: 'eu.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'eu.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'eu.example.com' } },
       },
     },
     {
@@ -726,7 +726,7 @@ const geoDistributed: Template = {
         protocol: 'vless',
         serverAddress: 'us.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'us.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'us.example.com' } },
       },
     },
     {
@@ -739,7 +739,7 @@ const geoDistributed: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'eu.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'eu.example.com' } },
       },
     },
     {
@@ -752,7 +752,7 @@ const geoDistributed: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'us.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'us.example.com' } },
       },
     },
     {
@@ -784,7 +784,7 @@ const geoDistributed: Template = {
     { source: 'exit-eu-in', target: 'freedom-eu' },
     { source: 'exit-us-in', target: 'freedom-us' },
   ],
-  summary: ['1 VLESS Inbound', '2 Geo-routing Rules (EU + US)', '2 Proxy Outbounds → 2 Exit servers with Freedom'],
+  summary: ['1 VLESS INPUT', '2 Geo-routing Rules (EU + US)', '2 Proxy OUTPUTs → 2 Exit servers with Freedom'],
 };
 
 // ── Advanced Templates ──
@@ -827,7 +827,7 @@ const cdnReady: Template = {
     },
   ],
   edges: [{ source: 'in1', target: 'out1' }],
-  summary: ['1 VLESS Inbound (WebSocket + TLS, CDN headers)', '1 Freedom Outbound'],
+  summary: ['1 VLESS INPUT (WebSocket + TLS, CDN headers)', '1 Freedom OUTPUT'],
 };
 
 const fallbackChain: Template = {
@@ -848,7 +848,7 @@ const fallbackChain: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'entry.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'entry.example.com' } },
       },
     },
     {
@@ -872,7 +872,7 @@ const fallbackChain: Template = {
         protocol: 'vless',
         serverAddress: 'primary.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'primary.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'primary.example.com' } },
       },
     },
     {
@@ -885,7 +885,7 @@ const fallbackChain: Template = {
         protocol: 'vless',
         serverAddress: 'backup1.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'backup1.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'backup1.example.com' } },
       },
     },
     {
@@ -898,7 +898,7 @@ const fallbackChain: Template = {
         protocol: 'vless',
         serverAddress: 'backup2.example.com',
         serverPort: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'backup2.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'backup2.example.com' } },
       },
     },
     {
@@ -911,7 +911,7 @@ const fallbackChain: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'exit.example.com' } },
       },
     },
     {
@@ -932,7 +932,7 @@ const fallbackChain: Template = {
     { source: 'bal1', target: 'out3' },
     { source: 'exit-in1', target: 'freedom1' },
   ],
-  summary: ['1 VLESS Inbound', '1 Balancer (leastPing failover)', '3 Proxy Outbounds (primary + 2 backups)', 'Exit server: VLESS Inbound → Freedom'],
+  summary: ['1 VLESS INPUT', '1 Balancer (leastPing failover)', '3 Proxy OUTPUTs (primary + 2 backups)', 'Exit server: VLESS INPUT → Freedom'],
 };
 
 const multiProtocol: Template = {
@@ -953,7 +953,7 @@ const multiProtocol: Template = {
         protocol: 'vless',
         listen: '0.0.0.0',
         port: 443,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'example.com' } },
       },
     },
     {
@@ -979,7 +979,7 @@ const multiProtocol: Template = {
         protocol: 'trojan',
         listen: '0.0.0.0',
         port: 2083,
-        transport: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'example.com' } },
+        transport: { network: 'raw', security: 'tls', tlsSettings: { serverName: 'example.com' } },
       },
     },
     {
@@ -998,7 +998,7 @@ const multiProtocol: Template = {
     { source: 'in2', target: 'out1' },
     { source: 'in3', target: 'out1' },
   ],
-  summary: ['3 Inbounds: VLESS (443), VMess (8443), Trojan (2083)', '1 Freedom Outbound'],
+  summary: ['3 INPUTs: VLESS (443), VMess (8443), Trojan (2083)', '1 Freedom OUTPUT'],
 };
 
 // ── Export all templates ──

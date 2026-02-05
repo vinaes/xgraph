@@ -17,6 +17,7 @@ import type {
   ProjectMetadata,
   EdgeData,
 } from '@/types';
+import { defaultTransport } from '@/types';
 import { pushHistory, clearHistory, pauseHistory, resumeHistory } from './useHistoryStore';
 
 export type XrayNode = Node<XrayNodeData>;
@@ -131,7 +132,15 @@ export const useStore = create<ProjectState & ProjectActions>()((set, get) => ({
 
   onConnect: (connection) => {
     pushHistory();
-    set({ edges: addEdge(connection, get().edges) });
+    set({
+      edges: addEdge(
+        {
+          ...connection,
+          data: { transport: { ...defaultTransport } } as EdgeData,
+        },
+        get().edges
+      ),
+    });
   },
 
   addNode: (node) => {
@@ -280,6 +289,14 @@ export const useStore = create<ProjectState & ProjectActions>()((set, get) => ({
     pauseHistory();
     clearHistory();
     const now = new Date().toISOString();
+    const normalizedEdges = data.edges.map((e) => {
+      const edgeData = (e.data || {}) as EdgeData;
+      if (edgeData.transport) return e;
+      return {
+        ...e,
+        data: { ...edgeData, transport: { ...defaultTransport } },
+      };
+    });
     set({
       id: data.id || uuidv4(),
       name: data.name,
@@ -287,7 +304,7 @@ export const useStore = create<ProjectState & ProjectActions>()((set, get) => ({
       mode: data.mode,
       metadata: data.metadata || { createdAt: now, updatedAt: now },
       nodes: data.nodes,
-      edges: data.edges,
+      edges: normalizedEdges,
       servers: data.servers,
       selectedNodeId: null,
       selectedEdgeId: null,

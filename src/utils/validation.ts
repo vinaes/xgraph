@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, TransportSettings } from '@/types';
+import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, TransportSettings, EdgeData } from '@/types';
 
 // ── Types ──
 
@@ -46,7 +46,7 @@ function validateInbound(node: GraphNode, data: InboundData, issues: ValidationI
   const id = node.id;
 
   if (!data.tag || data.tag.trim() === '') {
-    issues.push({ level: 'error', nodeId: id, message: 'Inbound node requires a tag' });
+    issues.push({ level: 'error', nodeId: id, message: 'INPUT node requires a tag' });
   }
 
   if (!isValidPort(data.port)) {
@@ -61,7 +61,7 @@ function validateInbound(node: GraphNode, data: InboundData, issues: ValidationI
   const needsUsers = ['vless', 'vmess', 'trojan'];
   if (needsUsers.includes(data.protocol)) {
     if (!data.users || data.users.length === 0) {
-      issues.push({ level: 'warning', nodeId: id, message: `${data.protocol} inbound has no users configured` });
+      issues.push({ level: 'warning', nodeId: id, message: `${data.protocol} INPUT has no users configured` });
     } else {
       data.users.forEach((user, i) => {
         if (['vless', 'vmess'].includes(data.protocol) && user.id && !UUID_RE.test(user.id)) {
@@ -74,9 +74,6 @@ function validateInbound(node: GraphNode, data: InboundData, issues: ValidationI
     }
   }
 
-  if (data.transport) {
-    validateTransport(id, data.transport, issues);
-  }
 }
 
 function validateRouting(node: GraphNode, data: RoutingData, issues: ValidationIssue[]): void {
@@ -119,19 +116,16 @@ function validateOutbound(node: GraphNode, data: OutboundData, nodeType: string,
   const id = node.id;
 
   if (!data.tag || data.tag.trim() === '') {
-    issues.push({ level: 'error', nodeId: id, message: 'Outbound node requires a tag' });
+    issues.push({ level: 'error', nodeId: id, message: 'OUTPUT node requires a tag' });
   }
 
   // Proxy outbounds require server address and port
   if (nodeType === 'outbound-proxy') {
     if (!data.serverAddress || data.serverAddress.trim() === '') {
-      issues.push({ level: 'error', nodeId: id, message: 'Proxy outbound requires a server address' });
+      issues.push({ level: 'error', nodeId: id, message: 'Proxy OUTPUT requires a server address' });
     }
     if (!data.serverPort || !isValidPort(data.serverPort)) {
-      issues.push({ level: 'error', nodeId: id, message: 'Proxy outbound requires a valid server port (1-65535)' });
-    }
-    if (data.transport) {
-      validateTransport(id, data.transport, issues);
+      issues.push({ level: 'error', nodeId: id, message: 'Proxy OUTPUT requires a valid server port (1-65535)' });
     }
   }
 }
@@ -139,12 +133,12 @@ function validateOutbound(node: GraphNode, data: OutboundData, nodeType: string,
 // ── Transport Validation ──
 
 function validateTransport(nodeId: string, transport: TransportSettings, issues: ValidationIssue[]): void {
-  // Reality only works with TCP or XHTTP
-  if (transport.security === 'reality' && !['tcp', 'xhttp'].includes(transport.network)) {
+  // Reality only works with RAW (TCP) or XHTTP
+  if (transport.security === 'reality' && !['raw', 'xhttp'].includes(transport.network)) {
     issues.push({
       level: 'error',
       nodeId,
-      message: `Reality security only works with TCP or XHTTP transport (currently: ${transport.network})`,
+      message: `Reality security only works with RAW or XHTTP transport (currently: ${transport.network})`,
     });
   }
 
@@ -206,7 +200,7 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
     }
   });
 
-  // Check for port conflicts (inbound nodes on same server with same port)
+  // Check for port conflicts (INPUT nodes on same server with same port)
   const portMap = new Map<string, string[]>();
   nodes.forEach((node) => {
     const data = node.data as XrayNodeData;
@@ -221,66 +215,66 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
   portMap.forEach((nodeIds, port) => {
     if (nodeIds.length > 1) {
       nodeIds.forEach((id) => {
-        issues.push({ level: 'error', nodeId: id, message: `Port conflict: port ${port} used by multiple inbound nodes` });
+        issues.push({ level: 'error', nodeId: id, message: `Port conflict: port ${port} used by multiple INPUT nodes` });
       });
     }
   });
 
-  // Check that inbound nodes have at least one outgoing connection
+  // Check that INPUT nodes have at least one outgoing connection
   const inboundNodes = nodes.filter((n) => (n.data as XrayNodeData).nodeType === 'inbound');
   inboundNodes.forEach((node) => {
     const hasOutgoing = edges.some((e) => e.source === node.id);
     if (!hasOutgoing) {
-      issues.push({ level: 'warning', nodeId: node.id, message: 'Inbound node has no outgoing connections' });
+      issues.push({ level: 'warning', nodeId: node.id, message: 'INPUT node has no outgoing connections' });
     }
   });
 
-  // Check that inbound nodes have a client connecting to them (device or proxy-outbound)
+  // Check that INPUT nodes have an upstream OUTPUT connecting to them
   inboundNodes.forEach((node) => {
     const hasDeviceOrProxy = edges.some((e) => {
       if (e.target !== node.id) return false;
       const sourceNode = nodes.find((n) => n.id === e.source);
       if (!sourceNode) return false;
       const st = (sourceNode.data as XrayNodeData).nodeType;
-      return st === 'device' || st === 'outbound-proxy';
+      return st === 'outbound-proxy';
     });
     if (!hasDeviceOrProxy) {
       issues.push({
         level: 'warning',
         nodeId: node.id,
-        message: 'No client device or upstream proxy connects to this inbound. It\'s OK if you\'re just planning the infrastructure side.',
+        message: 'No upstream OUTPUT connects to this INPUT. It\'s OK if you\'re just planning the infrastructure side.',
       });
     }
   });
 
-  // Check Device↔Inbound protocol compatibility
+  // Check Device→OUTPUT protocol compatibility
   const deviceNodes = nodes.filter((n) => (n.data as XrayNodeData).nodeType === 'device');
   deviceNodes.forEach((device) => {
     const deviceData = device.data as { nodeType: 'device' } & DeviceData;
     const connType = deviceData.connectionType;
 
-    // Find inbound nodes this device connects to
+    // Find OUTPUT nodes this device connects to
     const deviceEdges = edges.filter((e) => e.source === device.id);
     deviceEdges.forEach((edge) => {
       const targetNode = nodes.find((n) => n.id === edge.target);
       if (!targetNode) return;
       const targetData = targetNode.data as XrayNodeData;
-      if (targetData.nodeType !== 'inbound') return;
+      if (targetData.nodeType !== 'outbound-proxy') return;
 
-      const inboundData = targetData as InboundData;
-      const inboundProtocol = inboundData.protocol;
-      const requiredProtocol = connType === 'http' ? 'http' : 'socks'; // tun2socks and socks both require socks inbound
+      const outboundData = targetData as OutboundData;
+      const outboundProtocol = outboundData.protocol;
+      const requiredProtocol = connType === 'http' ? 'http' : 'socks'; // tun2socks and socks both require SOCKS OUTPUT
 
-      if (inboundProtocol !== requiredProtocol) {
+      if (outboundProtocol !== requiredProtocol) {
         issues.push({
           level: 'error',
           nodeId: device.id,
-          message: `Device with "${connType}" connection must connect to a "${requiredProtocol}" inbound, but "${inboundData.tag}" uses "${inboundProtocol}"`,
+          message: `Device with "${connType}" connection must connect to a "${requiredProtocol}" OUTPUT, but "${outboundData.tag}" uses "${outboundProtocol}"`,
         });
         issues.push({
           level: 'error',
           nodeId: targetNode.id,
-          message: `Inbound protocol "${inboundProtocol}" is incompatible with connected device using "${connType}". Expected "${requiredProtocol}"`,
+          message: `OUTPUT protocol "${outboundProtocol}" is incompatible with connected device using "${connType}". Expected "${requiredProtocol}"`,
         });
       }
     });
@@ -291,7 +285,7 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
   terminalNodes.forEach((node) => {
     const hasIncoming = edges.some((e) => e.target === node.id);
     if (!hasIncoming) {
-      issues.push({ level: 'warning', nodeId: node.id, message: 'Terminal outbound has no incoming connections' });
+      issues.push({ level: 'warning', nodeId: node.id, message: 'Terminal OUTPUT has no incoming connections' });
     }
   });
 
@@ -300,7 +294,7 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
   proxyNodes.forEach((node) => {
     const hasIncoming = edges.some((e) => e.target === node.id);
     if (!hasIncoming) {
-      issues.push({ level: 'warning', nodeId: node.id, message: 'Proxy outbound has no incoming connections' });
+      issues.push({ level: 'warning', nodeId: node.id, message: 'Proxy OUTPUT has no incoming connections' });
     }
   });
 
@@ -311,12 +305,12 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
       issues.push({
         level: 'warning',
         nodeId: node.id,
-        message: 'Proxy outbound is a dead-end — no connection to a downstream inbound node. In infrastructure mode, connect it to an inbound on the exit server.',
+        message: 'Proxy OUTPUT is a dead-end — no connection to a downstream INPUT node. In infrastructure mode, connect it to an INPUT on the exit server.',
       });
     }
   });
 
-  // Check that every inbound can reach at least one TERMINAL outbound (freedom/blackhole/dns)
+  // Check that every INPUT can reach at least one TERMINAL OUTPUT (freedom/blackhole/dns)
   // Proxy outbounds are NOT considered endpoints — traffic must eventually reach a terminal node
   const terminalIds = new Set(
     nodes
@@ -329,7 +323,7 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
       issues.push({
         level: 'warning',
         nodeId: inbound.id,
-        message: 'Inbound node cannot reach any terminal outbound (Freedom/Blackhole/DNS). Traffic has no final destination.',
+        message: 'INPUT node cannot reach any terminal OUTPUT (Freedom/Blackhole/DNS). Traffic has no final destination.',
       });
     }
   });
@@ -420,7 +414,7 @@ function validateConfig(nodes: GraphNode[], _edges: GraphEdge[], issues: Validat
         issues.push({
           level: 'warning',
           nodeId: n.id,
-          message: `Routing references inboundTag "${data.inboundTag}" which doesn't match any node tag`,
+          message: `Routing references inboundTag "${data.inboundTag}" which doesn't match any INPUT tag`,
         });
       }
     }
@@ -437,7 +431,7 @@ function validateConfig(nodes: GraphNode[], _edges: GraphEdge[], issues: Validat
           issues.push({
             level: 'warning',
             nodeId: n.id,
-            message: `Balancer selector "${sel}" doesn't match any outbound tag`,
+            message: `Balancer selector "${sel}" doesn't match any OUTPUT tag`,
           });
         }
       });
@@ -467,6 +461,24 @@ export function validateGraph(nodes: GraphNode[], edges: GraphEdge[]): Validatio
       case 'outbound-proxy':
         validateOutbound(node, data, data.nodeType, issues);
         break;
+    }
+  });
+
+  // Edge-level transport validation (cross-group edges)
+  const nodeServerMap = new Map(
+    nodes.map((n) => {
+      const d = n.data as Record<string, unknown>;
+      return [n.id, typeof d.serverId === 'string' ? d.serverId : undefined] as const;
+    })
+  );
+  edges.forEach((edge) => {
+    const srcServer = nodeServerMap.get(edge.source);
+    const tgtServer = nodeServerMap.get(edge.target);
+    if (srcServer === tgtServer) return; // internal edge, no transport to validate
+    const transport = (edge.data as EdgeData | undefined)?.transport;
+    if (transport) {
+      // Use edge ID for the issue, but also tag source node so the badge shows
+      validateTransport(edge.source, transport, issues);
     }
   });
 
