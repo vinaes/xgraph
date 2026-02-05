@@ -29,7 +29,7 @@ Xray Graph Builder is a browser-based tool that lets you design complex proxy ne
 
 ## Quick Start
 
-Open xgraph.vinaes.co or build it locally we dont mind.
+Open [xgraph.vinaes.co](https://xgraph.vinaes.co) or build it locally we dont mind.
 
 
 ## Use Cases
