@@ -88,6 +88,7 @@ Contributions welcome! Please open an issue first to discuss proposed changes.
 ## Sponsorship
 
 This software is completely free for use but you can spare some USDTs if you want!
+
 TRC20: `TVporaq1mYBnBiUyFzCcCB8BHwdMzbUwLg`
 
 TON: `UQDWMZfSZ3Xcj2SsPXp9d4dkjJ1jyHq_kb_2ymuYCCFYp7g6`
