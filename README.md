@@ -95,5 +95,3 @@ TON: `UQDWMZfSZ3Xcj2SsPXp9d4dkjJ1jyHq_kb_2ymuYCCFYp7g6`
 ## Links
 
 - [Xray-core Documentation](https://xtls.github.io/en/)
-- [Report Issues](your-repo/issues)
-- [Discussions](your-repo/discussions)
