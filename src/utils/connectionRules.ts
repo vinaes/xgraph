@@ -38,7 +38,7 @@ export function isValidConnection(
 
   // Define allowed connections
   const allowed: Record<string, string[]> = {
-    device: ['outbound-proxy'], // device connects to OUTPUT on client side
+    device: ['inbound', 'outbound-proxy'], // device connects to INPUT (socks/http) or OUTPUT on client side
     inbound: ['routing', 'balancer', 'outbound-terminal', 'outbound-proxy'],
     routing: ['routing', 'balancer', 'outbound-terminal', 'outbound-proxy'],
     balancer: ['outbound-terminal', 'outbound-proxy'],

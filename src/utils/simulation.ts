@@ -71,11 +71,26 @@ function matchDomainRule(rule: string, domain: string): boolean {
   return lower === target || lower.endsWith('.' + target);
 }
 
-function matchIpRule(_rule: string, _domain: string): boolean {
-  // IP-based rules can't be matched against a domain name in simulation.
-  // In a real xray, sniffing would resolve the domain first.
-  // For geoip rules, we can't resolve DNS client-side.
-  // Return false — IP rules only match if we have an IP input.
+function matchIpRule(rule: string, domain: string): boolean {
+  // For geoip rules, approximate by TLD / known patterns (like geosite does).
+  // Real xray resolves DNS first — we can't do that client-side.
+  if (rule.startsWith('geoip:')) {
+    const geo = rule.slice(6).toLowerCase();
+    const lower = domain.toLowerCase();
+
+    if (geo === 'private') {
+      return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|localhost$)/.test(lower);
+    }
+
+    // Country code heuristic: match TLD (.ru, .cn, .ir, etc.)
+    if (geo.length === 2) {
+      return lower.endsWith('.' + geo);
+    }
+
+    return false;
+  }
+
+  // Plain IP/CIDR matching — skip in simulation
   return false;
 }
 

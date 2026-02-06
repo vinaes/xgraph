@@ -11,6 +11,7 @@ import {
   type EdgeMouseHandler,
   type Edge,
   type OnSelectionChangeFunc,
+  useReactFlow,
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore, type XrayNode } from '@/store';
@@ -55,6 +56,7 @@ interface ContextMenuState {
 
 export default function Canvas() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition } = useReactFlow();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const rawNodes = useStore((s) => s.nodes);
@@ -341,11 +343,10 @@ export default function Canvas() {
     (event: ReactMouseEvent | MouseEvent) => {
       event.preventDefault();
 
-      const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!bounds) return;
-
-      const dropX = event.clientX - bounds.left;
-      const dropY = event.clientY - bounds.top;
+      const { x: dropX, y: dropY } = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
 
       const items: MenuItem[] = [
         ...buildQuickAddItems(dropX, dropY),
@@ -372,11 +373,10 @@ export default function Canvas() {
   // Double-click on canvas → quick add menu
   const handleDoubleClick = useCallback(
     (event: ReactMouseEvent) => {
-      const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!bounds) return;
-
-      const dropX = event.clientX - bounds.left;
-      const dropY = event.clientY - bounds.top;
+      const { x: dropX, y: dropY } = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
 
       setContextMenu({
         x: event.clientX,
@@ -384,7 +384,7 @@ export default function Canvas() {
         items: buildQuickAddItems(dropX, dropY),
       });
     },
-    [buildQuickAddItems]
+    [buildQuickAddItems, screenToFlowPosition]
   );
 
   const handleConnect = useCallback(
@@ -418,15 +418,14 @@ export default function Canvas() {
         protocol?: string;
       };
 
-      const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-      if (!bounds) return;
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
 
-      const dropX = event.clientX - bounds.left;
-      const dropY = event.clientY - bounds.top;
-
-      createQuickNode(dropX, dropY, item.nodeType, item.protocol);
+      createQuickNode(position.x, position.y, item.nodeType, item.protocol);
     },
-    [createQuickNode]
+    [createQuickNode, screenToFlowPosition]
   );
 
   return (
@@ -464,10 +463,10 @@ export default function Canvas() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOpts}
-        selectionOnDrag
-        panOnDrag={[1, 2]}
+        panOnDrag
+        selectionOnDrag={false}
         selectionMode={SelectionMode.Partial}
-        multiSelectionKeyCode="Shift"
+        selectionKeyCode="Shift"
         fitView
         snapToGrid
         snapGrid={[16, 16]}
