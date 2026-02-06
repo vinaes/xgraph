@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, TransportSettings, EdgeData } from '@/types';
+import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, TransportSettings, EdgeData, SimpleServerData, SimpleRulesData } from '@/types';
 
 // ── Types ──
 
@@ -127,6 +127,75 @@ function validateOutbound(node: GraphNode, data: OutboundData, nodeType: string,
     if (!data.serverPort || !isValidPort(data.serverPort)) {
       issues.push({ level: 'error', nodeId: id, message: 'Proxy OUTPUT requires a valid server port (1-65535)' });
     }
+  }
+}
+
+function validateSimpleServer(node: GraphNode, data: SimpleServerData, issues: ValidationIssue[]): void {
+  const id = node.id;
+
+  if (!data.host || data.host.trim() === '') {
+    issues.push({ level: 'error', nodeId: id, message: 'Server requires a host address' });
+  }
+
+  if (!isValidPort(data.port)) {
+    issues.push({ level: 'error', nodeId: id, message: `Invalid port: ${data.port}. Must be 1-65535` });
+  }
+
+  // UUID required for vless/vmess
+  if (['vless', 'vmess'].includes(data.protocol)) {
+    if (!data.uuid || data.uuid.trim() === '') {
+      issues.push({ level: 'warning', nodeId: id, message: `${data.protocol} server should have a UUID configured` });
+    } else if (!UUID_RE.test(data.uuid)) {
+      issues.push({ level: 'error', nodeId: id, message: `Invalid UUID: "${data.uuid}"` });
+    }
+  }
+
+  // Password required for trojan/shadowsocks
+  if (['trojan', 'shadowsocks'].includes(data.protocol)) {
+    if (!data.password || data.password.trim() === '') {
+      issues.push({ level: 'warning', nodeId: id, message: `${data.protocol} server should have a password configured` });
+    }
+  }
+
+  // Reality checks
+  if (data.security === 'reality') {
+    if (!['raw', 'xhttp'].includes(data.network)) {
+      issues.push({ level: 'error', nodeId: id, message: `Reality security only works with RAW or XHTTP transport (currently: ${data.network})` });
+    }
+    if (!data.realityPublicKey) {
+      issues.push({ level: 'error', nodeId: id, message: 'Reality security requires a public key' });
+    }
+  }
+
+  // TLS checks
+  if (data.security === 'tls') {
+    if (!data.sni) {
+      issues.push({ level: 'warning', nodeId: id, message: 'TLS security should have an SNI configured' });
+    }
+  }
+
+  // WebSocket path
+  if (data.network === 'ws' && !data.wsPath) {
+    issues.push({ level: 'warning', nodeId: id, message: 'WebSocket transport should have a path configured' });
+  }
+
+  // gRPC service name
+  if (data.network === 'grpc' && !data.grpcServiceName) {
+    issues.push({ level: 'warning', nodeId: id, message: 'gRPC transport should have a service name configured' });
+  }
+}
+
+function validateSimpleRules(_node: GraphNode, data: SimpleRulesData, issues: ValidationIssue[]): void {
+  const id = _node.id;
+
+  if (!data.rules || data.rules.length === 0) {
+    issues.push({ level: 'warning', nodeId: id, message: 'Rules node has no rules defined — will match nothing' });
+  } else {
+    data.rules.forEach((rule, i) => {
+      if (rule.type !== 'all' && (!rule.value || rule.value.trim() === '')) {
+        issues.push({ level: 'error', nodeId: id, message: `Rule ${i + 1} (${rule.type}) has no value` });
+      }
+    });
   }
 }
 
@@ -310,6 +379,27 @@ function validateStructure(nodes: GraphNode[], edges: GraphEdge[], issues: Valid
     }
   });
 
+  // Check that simple-server nodes have at least one incoming connection
+  const simpleServerNodes = nodes.filter((n) => (n.data as XrayNodeData).nodeType === 'simple-server');
+  simpleServerNodes.forEach((node) => {
+    const hasIncoming = edges.some((e) => e.target === node.id);
+    if (!hasIncoming) {
+      issues.push({ level: 'warning', nodeId: node.id, message: 'Server has no incoming connections' });
+    }
+  });
+
+  // Check that simple terminal nodes have at least one incoming connection
+  const simpleTerminalNodes = nodes.filter((n) => {
+    const nt = (n.data as XrayNodeData).nodeType;
+    return nt === 'simple-internet' || nt === 'simple-block';
+  });
+  simpleTerminalNodes.forEach((node) => {
+    const hasIncoming = edges.some((e) => e.target === node.id);
+    if (!hasIncoming) {
+      issues.push({ level: 'warning', nodeId: node.id, message: 'Terminal node has no incoming connections' });
+    }
+  });
+
   // Check that every INPUT can reach at least one TERMINAL OUTPUT (freedom/blackhole/dns)
   // Proxy outbounds are NOT considered endpoints — traffic must eventually reach a terminal node
   const terminalIds = new Set(
@@ -460,6 +550,12 @@ export function validateGraph(nodes: GraphNode[], edges: GraphEdge[]): Validatio
       case 'outbound-terminal':
       case 'outbound-proxy':
         validateOutbound(node, data, data.nodeType, issues);
+        break;
+      case 'simple-server':
+        validateSimpleServer(node, data as unknown as SimpleServerData, issues);
+        break;
+      case 'simple-rules':
+        validateSimpleRules(node, data as unknown as SimpleRulesData, issues);
         break;
     }
   });

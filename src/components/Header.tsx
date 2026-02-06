@@ -23,6 +23,8 @@ export default function Header({ onExport, onImport, onSimulate, simulationActiv
   const setProjectName = useStore((s) => s.setProjectName);
   const newProject = useStore((s) => s.newProject);
   const importProject = useStore((s) => s.importProject);
+  const mode = useStore((s) => s.mode);
+  const setMode = useStore((s) => s.setMode);
   const togglePalette = useStore((s) => s.togglePalette);
   const toggleInspector = useStore((s) => s.toggleInspector);
   const [confirmNewOpen, setConfirmNewOpen] = useState(false);
@@ -89,6 +91,30 @@ export default function Header({ onExport, onImport, onSimulate, simulationActiv
         onChange={(e) => setProjectName(e.target.value)}
         className="bg-transparent text-sm text-slate-200 border-none outline-none w-40 hover:bg-slate-800 px-2 py-1 rounded transition-colors"
       />
+
+      {/* Mode switcher */}
+      <div className="flex bg-slate-800 rounded-lg p-0.5">
+        <button
+          onClick={() => setMode('simple')}
+          className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+            mode === 'simple'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Simple
+        </button>
+        <button
+          onClick={() => setMode('advanced')}
+          className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+            mode === 'advanced'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Advanced
+        </button>
+      </div>
 
       {/* Spacer */}
       <div className="flex-1" />

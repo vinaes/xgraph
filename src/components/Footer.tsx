@@ -5,6 +5,7 @@ export default function Footer() {
   const nodes = useStore((s) => s.nodes);
   const edges = useStore((s) => s.edges);
   const servers = useStore((s) => s.servers);
+  const mode = useStore((s) => s.mode);
   const result = useValidationStore((s) => s.result);
 
   const errorCount = result.errors.length;
@@ -35,6 +36,10 @@ export default function Footer() {
       {warningCount > 0 && (
         <span className="text-yellow-400">{warningCount} warning{warningCount > 1 ? 's' : ''}</span>
       )}
+      <div className="w-px h-4 bg-slate-700" />
+      <span className={mode === 'simple' ? 'text-indigo-400' : 'text-blue-400'}>
+        {mode === 'simple' ? 'SIMPLE' : 'ADVANCED'}
+      </span>
       <div className="w-px h-4 bg-slate-700" />
       <span>{nodes.length} nodes</span>
       <span>{edges.length} edges</span>

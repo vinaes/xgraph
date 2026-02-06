@@ -14,7 +14,7 @@ interface ImportDialogProps {
 }
 
 type ImportTab = 'config' | 'project';
-type ModeOption = 'auto' | 'client' | 'infrastructure';
+type ModeOption = 'auto' | 'simple' | 'advanced';
 
 export default function ImportDialog({ open, onClose }: ImportDialogProps) {
   const importProject = useStore((s) => s.importProject);
@@ -233,8 +233,8 @@ export default function ImportDialog({ open, onClose }: ImportDialogProps) {
                     <div className="flex gap-1 bg-slate-800 rounded-lg p-1">
                       {([
                         { id: 'auto', label: 'Auto-detect' },
-                        { id: 'client', label: 'Force Client' },
-                        { id: 'infrastructure', label: 'Force Infrastructure' },
+                        { id: 'simple', label: 'Simple' },
+                        { id: 'advanced', label: 'Advanced' },
                       ] as const).map((opt) => (
                         <button
                           key={opt.id}
@@ -341,7 +341,7 @@ function ImportSummaryView({ summary, onClose }: { summary: ImportSummary; onClo
         <div className="flex items-center gap-2 text-xs">
           <span className="text-blue-400">&#9432;</span>
           <span className="text-slate-400">
-            Mode: {summary.mode === 'client' ? 'Client' : summary.mode === 'infrastructure' ? 'Infrastructure' : 'Hybrid'}
+            Mode: {summary.mode === 'simple' ? 'Simple' : 'Advanced'}
           </span>
         </div>
       </div>

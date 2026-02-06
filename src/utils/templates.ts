@@ -32,6 +32,8 @@ export interface Template {
   edges: TemplateEdge[];
   /** What will be created — shown in preview */
   summary: string[];
+  /** Which mode this template belongs to. 'advanced' if omitted. */
+  mode?: 'simple' | 'advanced';
 }
 
 // ── Basic Templates ──
@@ -1001,6 +1003,241 @@ const multiProtocol: Template = {
   summary: ['3 INPUTs: VLESS (443), VMess (8443), Trojan (2083)', '1 Freedom OUTPUT'],
 };
 
+// ── Simple Mode Templates ──
+
+const simpleBasicVpn: Template = {
+  id: 'simple-basic-vpn',
+  name: 'Basic VPN',
+  description: 'Connect your device through a single proxy server to the internet. The simplest setup.',
+  category: 'Basic',
+  difficulty: 'Beginner',
+  tags: ['simple', 'vpn', 'basic'],
+  mode: 'simple',
+  nodes: [
+    {
+      id: 'dev1',
+      type: 'device',
+      position: { x: 0, y: 100 },
+      data: { nodeType: 'device', name: 'My Device', connectionType: 'socks' },
+    },
+    {
+      id: 'srv1',
+      type: 'simple-server',
+      position: { x: 250, y: 100 },
+      data: {
+        nodeType: 'simple-server',
+        name: 'Proxy Server',
+        host: 'server.example.com',
+        port: 443,
+        protocol: 'vless',
+        network: 'raw',
+        security: 'tls',
+      },
+    },
+    {
+      id: 'inet1',
+      type: 'simple-internet',
+      position: { x: 500, y: 100 },
+      data: { nodeType: 'simple-internet', label: 'Internet' },
+    },
+  ],
+  edges: [
+    { source: 'dev1', target: 'srv1' },
+    { source: 'srv1', target: 'inet1' },
+  ],
+  summary: ['1 Device', '1 Server (VLESS + TLS)', '1 Internet exit'],
+};
+
+const simpleMultiHop: Template = {
+  id: 'simple-multi-hop',
+  name: 'Multi-hop VPN',
+  description: 'Route traffic through two servers for extra privacy. Entry server forwards to exit server.',
+  category: 'Basic',
+  difficulty: 'Beginner',
+  tags: ['simple', 'multi-hop', 'privacy'],
+  mode: 'simple',
+  nodes: [
+    {
+      id: 'dev1',
+      type: 'device',
+      position: { x: 0, y: 100 },
+      data: { nodeType: 'device', name: 'My Device', connectionType: 'socks' },
+    },
+    {
+      id: 'srv1',
+      type: 'simple-server',
+      position: { x: 200, y: 100 },
+      data: {
+        nodeType: 'simple-server',
+        name: 'Entry Server',
+        host: 'entry.example.com',
+        port: 443,
+        protocol: 'vless',
+        network: 'ws',
+        security: 'tls',
+        wsPath: '/ws',
+        sni: 'entry.example.com',
+      },
+    },
+    {
+      id: 'srv2',
+      type: 'simple-server',
+      position: { x: 400, y: 100 },
+      data: {
+        nodeType: 'simple-server',
+        name: 'Exit Server',
+        host: 'exit.example.com',
+        port: 443,
+        protocol: 'vless',
+        network: 'raw',
+        security: 'tls',
+        sni: 'exit.example.com',
+      },
+    },
+    {
+      id: 'inet1',
+      type: 'simple-internet',
+      position: { x: 600, y: 100 },
+      data: { nodeType: 'simple-internet', label: 'Internet' },
+    },
+  ],
+  edges: [
+    { source: 'dev1', target: 'srv1' },
+    { source: 'srv1', target: 'srv2' },
+    { source: 'srv2', target: 'inet1' },
+  ],
+  summary: ['1 Device', '2 Servers (entry + exit)', '1 Internet exit'],
+};
+
+const simpleGeoRouting: Template = {
+  id: 'simple-geo-routing',
+  name: 'Geo-routing',
+  description: 'Route traffic based on destination. Domestic traffic goes direct, international through proxy.',
+  category: 'Routing',
+  difficulty: 'Intermediate',
+  tags: ['simple', 'geo', 'routing', 'split'],
+  mode: 'simple',
+  nodes: [
+    {
+      id: 'dev1',
+      type: 'device',
+      position: { x: 0, y: 150 },
+      data: { nodeType: 'device', name: 'My Device', connectionType: 'socks' },
+    },
+    {
+      id: 'rules1',
+      type: 'simple-rules',
+      position: { x: 200, y: 150 },
+      data: {
+        nodeType: 'simple-rules',
+        label: 'Geo Rules',
+        rules: [
+          { type: 'geosite', value: 'cn' },
+          { type: 'geoip', value: 'cn' },
+        ],
+      },
+    },
+    {
+      id: 'srv1',
+      type: 'simple-server',
+      position: { x: 450, y: 50 },
+      data: {
+        nodeType: 'simple-server',
+        name: 'Proxy Server',
+        host: 'proxy.example.com',
+        port: 443,
+        protocol: 'vless',
+        network: 'raw',
+        security: 'tls',
+        sni: 'proxy.example.com',
+      },
+    },
+    {
+      id: 'inet1',
+      type: 'simple-internet',
+      position: { x: 700, y: 50 },
+      data: { nodeType: 'simple-internet', label: 'Internet' },
+    },
+    {
+      id: 'inet2',
+      type: 'simple-internet',
+      position: { x: 450, y: 250 },
+      data: { nodeType: 'simple-internet', label: 'Direct' },
+    },
+  ],
+  edges: [
+    { source: 'dev1', target: 'rules1' },
+    { source: 'rules1', target: 'srv1' },
+    { source: 'rules1', target: 'inet2' },
+    { source: 'srv1', target: 'inet1' },
+  ],
+  summary: ['1 Device', '1 Rules (geo-based)', '1 Server + 2 Internet exits'],
+};
+
+const simpleAdBlock: Template = {
+  id: 'simple-ad-block',
+  name: 'Ad-blocking VPN',
+  description: 'VPN with ad-blocking rules. Ads are blocked, everything else goes through proxy.',
+  category: 'Routing',
+  difficulty: 'Beginner',
+  tags: ['simple', 'ads', 'blocking'],
+  mode: 'simple',
+  nodes: [
+    {
+      id: 'dev1',
+      type: 'device',
+      position: { x: 0, y: 150 },
+      data: { nodeType: 'device', name: 'My Device', connectionType: 'socks' },
+    },
+    {
+      id: 'rules1',
+      type: 'simple-rules',
+      position: { x: 200, y: 150 },
+      data: {
+        nodeType: 'simple-rules',
+        label: 'Ad Filter',
+        rules: [
+          { type: 'geosite', value: 'category-ads-all' },
+        ],
+      },
+    },
+    {
+      id: 'block1',
+      type: 'simple-block',
+      position: { x: 450, y: 250 },
+      data: { nodeType: 'simple-block', label: 'Block' },
+    },
+    {
+      id: 'srv1',
+      type: 'simple-server',
+      position: { x: 450, y: 50 },
+      data: {
+        nodeType: 'simple-server',
+        name: 'Proxy Server',
+        host: 'proxy.example.com',
+        port: 443,
+        protocol: 'vless',
+        network: 'raw',
+        security: 'tls',
+        sni: 'proxy.example.com',
+      },
+    },
+    {
+      id: 'inet1',
+      type: 'simple-internet',
+      position: { x: 700, y: 50 },
+      data: { nodeType: 'simple-internet', label: 'Internet' },
+    },
+  ],
+  edges: [
+    { source: 'dev1', target: 'rules1' },
+    { source: 'rules1', target: 'block1' },
+    { source: 'rules1', target: 'srv1' },
+    { source: 'srv1', target: 'inet1' },
+  ],
+  summary: ['1 Device', '1 Rules (ad filter)', '1 Block + 1 Server + 1 Internet'],
+};
+
 // ── Export all templates ──
 
 export const allTemplates: Template[] = [
@@ -1021,6 +1258,11 @@ export const allTemplates: Template[] = [
   cdnReady,
   fallbackChain,
   multiProtocol,
+  // Simple Mode
+  simpleBasicVpn,
+  simpleMultiHop,
+  simpleGeoRouting,
+  simpleAdBlock,
 ];
 
 export const templateCategories: TemplateCategory[] = ['Basic', 'Routing', 'Infrastructure', 'Advanced'];

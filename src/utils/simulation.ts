@@ -1,4 +1,4 @@
-import type { XrayNodeData, RoutingData, BalancerData, EdgeData } from '@/types';
+import type { XrayNodeData, RoutingData, BalancerData, EdgeData, SimpleRulesData } from '@/types';
 import type { XrayNode, XrayEdge } from '@/store';
 
 // ── Simulation Input ──
@@ -199,7 +199,16 @@ function describeNode(node: XrayNode): string {
       return `${d.protocol.charAt(0).toUpperCase() + d.protocol.slice(1)} OUTPUT (terminal)`;
     case 'outbound-proxy':
       return `OUTPUT ${d.protocol.toUpperCase()} → ${d.serverAddress || '?'}:${d.serverPort || '?'}`;
+    case 'simple-server':
+      return `Server ${d.name} (${d.protocol}://${d.host || '?'}:${d.port})`;
+    case 'simple-internet':
+      return 'Internet (direct)';
+    case 'simple-block':
+      return 'Block (blackhole)';
+    case 'simple-rules':
+      return `Rules (${d.rules?.length || 0} conditions)`;
   }
+  return (d as XrayNodeData).nodeType;
 }
 
 export function runSimulation(
@@ -237,7 +246,7 @@ export function runSimulation(
       const cycleData = currentNode.data as XrayNodeData;
       path.push({
         nodeId: currentNode.id,
-        tag: 'tag' in cycleData ? cycleData.tag : ('name' in cycleData ? cycleData.name : currentNode.id),
+        tag: 'tag' in cycleData ? cycleData.tag : ('name' in cycleData ? cycleData.name : ('label' in cycleData ? cycleData.label : currentNode.id)),
         nodeType: cycleData.nodeType,
         description: 'Cycle detected — stopping.',
       });
@@ -257,7 +266,7 @@ export function runSimulation(
 
     path.push({
       nodeId: currentNode.id,
-      tag: 'tag' in data ? data.tag : ('name' in data ? data.name : currentNode.id),
+      tag: 'tag' in data ? data.tag : ('name' in data ? data.name : ('label' in data ? data.label : currentNode.id)),
       nodeType: data.nodeType,
       description: describeNode(currentNode),
     });
@@ -305,6 +314,73 @@ export function runSimulation(
         finalOutbound: data.tag,
         explanation: `Traffic forwarded to ${data.serverAddress || '?'}:${data.serverPort || '?'} via "${data.tag}".`,
       };
+    }
+
+    // Simple server — follow to next node
+    if (data.nodeType === 'simple-server') {
+      const outgoing = getOutgoingEdges(currentNode.id, edges);
+      if (outgoing.length === 0) {
+        return {
+          success: false,
+          path,
+          highlightNodeIds,
+          highlightEdgeIds,
+          finalOutbound: null,
+          explanation: `Dead end at server "${data.name}" — no outgoing connections.`,
+        };
+      }
+      const nextEdge = outgoing[0]!;
+      highlightEdgeIds.push(nextEdge.id);
+      currentNode = getNodeById(nextEdge.target, nodes);
+      continue;
+    }
+
+    // Simple internet — terminal (end of path)
+    if (data.nodeType === 'simple-internet') {
+      return {
+        success: true,
+        path,
+        highlightNodeIds,
+        highlightEdgeIds,
+        finalOutbound: 'internet',
+        explanation: 'Traffic exits to internet.',
+      };
+    }
+
+    // Simple block — terminal (end of path)
+    if (data.nodeType === 'simple-block') {
+      return {
+        success: true,
+        path,
+        highlightNodeIds,
+        highlightEdgeIds,
+        finalOutbound: 'block',
+        explanation: 'Traffic blocked.',
+      };
+    }
+
+    // Simple rules — match rules and route
+    if (data.nodeType === 'simple-rules') {
+      const rulesData = data as SimpleRulesData;
+      const outgoing = getOutgoingEdges(currentNode.id, edges);
+
+      if (outgoing.length === 0) {
+        return {
+          success: false,
+          path,
+          highlightNodeIds,
+          highlightEdgeIds,
+          finalOutbound: null,
+          explanation: `Dead end at rules "${rulesData.label}" — no outgoing connections.`,
+        };
+      }
+
+      // For simple rules, just follow the first outgoing edge
+      // (rule matching in simple mode is simplified)
+      const nextEdge = outgoing[0]!;
+      highlightEdgeIds.push(nextEdge.id);
+      currentNode = getNodeById(nextEdge.target, nodes);
+      continue;
     }
 
     // Inbound or routing or balancer — find next hop
@@ -409,7 +485,7 @@ export function runSimulation(
       const selectedTarget = getNodeById(selectedEdge.target, nodes);
       if (selectedTarget) {
         const selData = selectedTarget.data as XrayNodeData;
-        path[path.length - 1]!.description += ` → selected: ${'tag' in selData ? selData.tag : selData.name}`;
+        path[path.length - 1]!.description += ` → selected: ${'tag' in selData ? selData.tag : ('name' in selData ? selData.name : selData.nodeType)}`;
       }
 
       highlightEdgeIds.push(selectedEdge.id);

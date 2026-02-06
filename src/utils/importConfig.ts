@@ -285,9 +285,9 @@ function detectMode(config: XrayConfig): ProjectMode {
   const uniquePorts = new Set(inbounds.map((i) => i.port));
 
   if (hasProxyOutbound && inbounds.length > 1 && uniquePorts.size > 1) {
-    return 'infrastructure';
+    return 'advanced';
   }
-  return 'client';
+  return 'advanced';
 }
 
 // ── Main import function ──
@@ -541,9 +541,9 @@ export function importProjectFile(jsonString: string): {
 
   return {
     name: project.name || 'Imported Project',
-    mode: (['client', 'infrastructure', 'hybrid'].includes(project.mode || '')
+    mode: (['simple', 'advanced'].includes(project.mode || '')
       ? project.mode as ProjectMode
-      : 'client'),
+      : 'advanced'),
     nodes: (project.nodes || []) as unknown as XrayNode[],
     edges: (project.edges || []) as unknown as XrayEdge[],
     servers: ((project.servers || []) as Array<Record<string, unknown>>).map((s) => ({

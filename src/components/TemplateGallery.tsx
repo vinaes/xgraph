@@ -35,11 +35,14 @@ export default function TemplateGallery({ open, onClose }: TemplateGalleryProps)
   const [preview, setPreview] = useState<Template | null>(null);
   const [confirmApply, setConfirmApply] = useState<Template | null>(null);
   const nodes = useStore((s) => s.nodes);
+  const mode = useStore((s) => s.mode);
+
+  const modeTemplates = allTemplates.filter((t) => (t.mode || 'advanced') === mode);
 
   const filteredTemplates =
     selectedCategory === 'All'
-      ? allTemplates
-      : allTemplates.filter((t) => t.category === selectedCategory);
+      ? modeTemplates
+      : modeTemplates.filter((t) => t.category === selectedCategory);
 
   const applyTemplate = useCallback(
     (template: Template) => {
@@ -146,10 +149,10 @@ export default function TemplateGallery({ open, onClose }: TemplateGalleryProps)
                 : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
-            All ({allTemplates.length})
+            All ({modeTemplates.length})
           </button>
           {templateCategories.map((cat) => {
-            const count = allTemplates.filter((t) => t.category === cat).length;
+            const count = modeTemplates.filter((t) => t.category === cat).length;
             return (
               <button
                 key={cat}
@@ -278,6 +281,11 @@ function MiniGraph({ template }: { template: Template }) {
     balancer: '#a855f7',
     'outbound-terminal': '#ef4444',
     'outbound-proxy': '#f97316',
+    device: '#06b6d4',
+    'simple-server': '#6366f1',
+    'simple-internet': '#22c55e',
+    'simple-block': '#ef4444',
+    'simple-rules': '#3b82f6',
   };
 
   const scale = (x: number, y: number) => ({

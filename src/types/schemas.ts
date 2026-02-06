@@ -117,10 +117,55 @@ export const DeviceDataSchema = z.object({
   connectionType: DeviceConnectionType.default('socks'),
 });
 
+// ── Simple Mode Node Data ──
+
+export const SimpleServerProtocol = z.enum(['vless', 'vmess', 'trojan', 'shadowsocks']);
+
+export const SimpleServerDataSchema = z.object({
+  name: z.string().default('Server'),
+  host: z.string().default(''),
+  port: z.number().min(1).max(65535).default(443),
+  protocol: SimpleServerProtocol.default('vless'),
+  uuid: z.string().optional(),
+  password: z.string().optional(),
+  network: z.enum(['raw', 'ws', 'grpc', 'xhttp']).default('raw'),
+  security: z.enum(['none', 'tls', 'reality']).default('none'),
+  sni: z.string().optional(),
+  fingerprint: z.string().optional(),
+  alpn: z.string().optional(),
+  wsPath: z.string().optional(),
+  wsHost: z.string().optional(),
+  grpcServiceName: z.string().optional(),
+  xhttpPath: z.string().optional(),
+  xhttpHost: z.string().optional(),
+  realityPublicKey: z.string().optional(),
+  realityShortId: z.string().optional(),
+  realitySpiderX: z.string().optional(),
+});
+
+export const SimpleInternetDataSchema = z.object({
+  label: z.string().default('Internet'),
+});
+
+export const SimpleBlockDataSchema = z.object({
+  label: z.string().default('Block'),
+});
+
+export const SimpleRuleCondition = z.object({
+  type: z.enum(['domain', 'geosite', 'geoip', 'all']),
+  value: z.string().default(''),
+});
+
+export const SimpleRulesDataSchema = z.object({
+  label: z.string().default('Rules'),
+  rules: z.array(SimpleRuleCondition).default([]),
+});
+
 // ── Node Types ──
 
 export const NodeType = z.enum([
   'device', 'inbound', 'routing', 'balancer', 'outbound-terminal', 'outbound-proxy',
+  'simple-server', 'simple-internet', 'simple-block', 'simple-rules',
 ]);
 
 // ── Server ──
@@ -145,7 +190,7 @@ export const EdgeType = z.enum(['default', 'conditional']);
 
 // ── Project ──
 
-export const ProjectMode = z.enum(['client', 'infrastructure', 'hybrid']);
+export const ProjectMode = z.enum(['simple', 'advanced']);
 
 export const ProjectMetadataSchema = z.object({
   createdAt: z.string(),
@@ -179,6 +224,11 @@ export type EdgeData = z.infer<typeof EdgeDataSchema>;
 export type ProjectMetadata = z.infer<typeof ProjectMetadataSchema>;
 export type DeviceData = z.infer<typeof DeviceDataSchema>;
 export type DeviceConnectionType = z.infer<typeof DeviceConnectionType>;
+export type SimpleServerData = z.infer<typeof SimpleServerDataSchema>;
+export type SimpleInternetData = z.infer<typeof SimpleInternetDataSchema>;
+export type SimpleBlockData = z.infer<typeof SimpleBlockDataSchema>;
+export type SimpleRuleCondition = z.infer<typeof SimpleRuleCondition>;
+export type SimpleRulesData = z.infer<typeof SimpleRulesDataSchema>;
 export type XrayProject = z.infer<typeof XrayProjectSchema>;
 export type NodeType = z.infer<typeof NodeType>;
 export type ProjectMode = z.infer<typeof ProjectMode>;
@@ -191,7 +241,11 @@ export type XrayNodeData =
   | ({ nodeType: 'routing' } & RoutingData)
   | ({ nodeType: 'balancer' } & BalancerData)
   | ({ nodeType: 'outbound-terminal' } & OutboundData)
-  | ({ nodeType: 'outbound-proxy' } & OutboundData);
+  | ({ nodeType: 'outbound-proxy' } & OutboundData)
+  | ({ nodeType: 'simple-server' } & SimpleServerData)
+  | ({ nodeType: 'simple-internet' } & SimpleInternetData)
+  | ({ nodeType: 'simple-block' } & SimpleBlockData)
+  | ({ nodeType: 'simple-rules' } & SimpleRulesData);
 
 // ── Defaults ──
 
@@ -236,5 +290,35 @@ export function createDefaultOutboundData(
   return {
     tag: '',
     protocol,
+  };
+}
+
+export function createDefaultSimpleServerData(): SimpleServerData {
+  return {
+    name: 'Server',
+    host: '',
+    port: 443,
+    protocol: 'vless',
+    network: 'raw',
+    security: 'none',
+  };
+}
+
+export function createDefaultSimpleInternetData(): SimpleInternetData {
+  return {
+    label: 'Internet',
+  };
+}
+
+export function createDefaultSimpleBlockData(): SimpleBlockData {
+  return {
+    label: 'Block',
+  };
+}
+
+export function createDefaultSimpleRulesData(): SimpleRulesData {
+  return {
+    label: 'Rules',
+    rules: [],
   };
 }

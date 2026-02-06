@@ -520,13 +520,14 @@ export default function ExportDialog({ open, onClose }: ExportDialogProps) {
   const edges = useStore((s) => s.edges);
   const servers = useStore((s) => s.servers);
   const projectName = useStore((s) => s.name);
+  const mode = useStore((s) => s.mode);
   const [tab, setTab] = useState<ExportTab>('configs');
   const [zipping, setZipping] = useState(false);
 
   const results: ExportResult[] = useMemo(() => {
     if (!open) return [];
     try {
-      return exportConfig(nodes, edges, servers);
+      return exportConfig(nodes, edges, servers, mode);
     } catch (err) {
       console.error('Export config generation failed:', err);
       useToastStore.getState().addToast({
@@ -535,7 +536,7 @@ export default function ExportDialog({ open, onClose }: ExportDialogProps) {
       });
       return [];
     }
-  }, [open, nodes, edges, servers]);
+  }, [open, nodes, edges, servers, mode]);
 
   const serverAddress = servers.length > 0 ? servers[0]!.host : undefined;
   const clientConfigs = useMemo(() => {

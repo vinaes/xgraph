@@ -22,6 +22,10 @@ import {
   createDefaultRoutingData,
   createDefaultBalancerData,
   createDefaultOutboundData,
+  createDefaultSimpleServerData,
+  createDefaultSimpleInternetData,
+  createDefaultSimpleBlockData,
+  createDefaultSimpleRulesData,
   type XrayNodeData,
   type EdgeData,
 } from '@/types';
@@ -46,6 +50,10 @@ const nodeColorMap: Record<string, string> = {
   balancer: '#a855f7',
   'outbound-terminal': '#ef4444',
   'outbound-proxy': '#f97316',
+  'simple-server': '#6366f1',
+  'simple-internet': '#10b981',
+  'simple-block': '#ef4444',
+  'simple-rules': '#3b82f6',
 };
 
 interface ContextMenuState {
@@ -59,6 +67,7 @@ export default function Canvas() {
   const { screenToFlowPosition } = useReactFlow();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
+  const mode = useStore((s) => s.mode);
   const rawNodes = useStore((s) => s.nodes);
   const edges = useStore((s) => s.edges);
   const hoveredNodeId = useStore((s) => s.hoveredNodeId);
@@ -172,6 +181,18 @@ export default function Canvas() {
             tag: `output-${protocol}-${Date.now().toString(36)}`,
           };
           break;
+        case 'simple-server':
+          data = { nodeType: 'simple-server', ...createDefaultSimpleServerData() };
+          break;
+        case 'simple-internet':
+          data = { nodeType: 'simple-internet', ...createDefaultSimpleInternetData() };
+          break;
+        case 'simple-block':
+          data = { nodeType: 'simple-block', ...createDefaultSimpleBlockData() };
+          break;
+        case 'simple-rules':
+          data = { nodeType: 'simple-rules', ...createDefaultSimpleRulesData() };
+          break;
         default:
           return;
       }
@@ -189,48 +210,61 @@ export default function Canvas() {
 
   // Build quick-add menu items for a given canvas position
   const buildQuickAddItems = useCallback(
-    (dropX: number, dropY: number): MenuItem[] => [
-      {
-        label: 'Add Device',
-        onClick: () => createQuickNode(dropX, dropY, 'device'),
-      },
-      { label: '', onClick: () => {}, separator: true },
-      {
-        label: 'Add VLESS INPUT',
-        onClick: () => createQuickNode(dropX, dropY, 'inbound', 'vless'),
-      },
-      {
-        label: 'Add VMess INPUT',
-        onClick: () => createQuickNode(dropX, dropY, 'inbound', 'vmess'),
-      },
-      {
-        label: 'Add Trojan INPUT',
-        onClick: () => createQuickNode(dropX, dropY, 'inbound', 'trojan'),
-      },
-      { label: '', onClick: () => {}, separator: true },
-      {
-        label: 'Add Routing Rule',
-        onClick: () => createQuickNode(dropX, dropY, 'routing'),
-      },
-      {
-        label: 'Add Balancer',
-        onClick: () => createQuickNode(dropX, dropY, 'balancer'),
-      },
-      { label: '', onClick: () => {}, separator: true },
-      {
-        label: 'Add Freedom OUTPUT',
-        onClick: () => createQuickNode(dropX, dropY, 'outbound-terminal', 'freedom'),
-      },
-      {
-        label: 'Add Blackhole OUTPUT',
-        onClick: () => createQuickNode(dropX, dropY, 'outbound-terminal', 'blackhole'),
-      },
-      {
-        label: 'Add Proxy OUTPUT',
-        onClick: () => createQuickNode(dropX, dropY, 'outbound-proxy', 'vless'),
-      },
-    ],
-    [createQuickNode]
+    (dropX: number, dropY: number): MenuItem[] => {
+      if (mode === 'simple') {
+        return [
+          { label: 'Add Device', onClick: () => createQuickNode(dropX, dropY, 'device') },
+          { label: '', onClick: () => {}, separator: true },
+          { label: 'Add Server', onClick: () => createQuickNode(dropX, dropY, 'simple-server') },
+          { label: 'Add Rules', onClick: () => createQuickNode(dropX, dropY, 'simple-rules') },
+          { label: '', onClick: () => {}, separator: true },
+          { label: 'Add Internet', onClick: () => createQuickNode(dropX, dropY, 'simple-internet') },
+          { label: 'Add Block', onClick: () => createQuickNode(dropX, dropY, 'simple-block') },
+        ];
+      }
+      return [
+        {
+          label: 'Add Device',
+          onClick: () => createQuickNode(dropX, dropY, 'device'),
+        },
+        { label: '', onClick: () => {}, separator: true },
+        {
+          label: 'Add VLESS INPUT',
+          onClick: () => createQuickNode(dropX, dropY, 'inbound', 'vless'),
+        },
+        {
+          label: 'Add VMess INPUT',
+          onClick: () => createQuickNode(dropX, dropY, 'inbound', 'vmess'),
+        },
+        {
+          label: 'Add Trojan INPUT',
+          onClick: () => createQuickNode(dropX, dropY, 'inbound', 'trojan'),
+        },
+        { label: '', onClick: () => {}, separator: true },
+        {
+          label: 'Add Routing Rule',
+          onClick: () => createQuickNode(dropX, dropY, 'routing'),
+        },
+        {
+          label: 'Add Balancer',
+          onClick: () => createQuickNode(dropX, dropY, 'balancer'),
+        },
+        { label: '', onClick: () => {}, separator: true },
+        {
+          label: 'Add Freedom OUTPUT',
+          onClick: () => createQuickNode(dropX, dropY, 'outbound-terminal', 'freedom'),
+        },
+        {
+          label: 'Add Blackhole OUTPUT',
+          onClick: () => createQuickNode(dropX, dropY, 'outbound-terminal', 'blackhole'),
+        },
+        {
+          label: 'Add Proxy OUTPUT',
+          onClick: () => createQuickNode(dropX, dropY, 'outbound-proxy', 'vless'),
+        },
+      ];
+    },
+    [createQuickNode, mode]
   );
 
   const handleNodeMouseEnter: NodeMouseHandler<XrayNode> = useCallback(
@@ -367,7 +401,7 @@ export default function Canvas() {
 
       setContextMenu({ x: event.clientX, y: event.clientY, items });
     },
-    [buildQuickAddItems]
+    [buildQuickAddItems, mode]
   );
 
   // Double-click on canvas → quick add menu
@@ -384,7 +418,7 @@ export default function Canvas() {
         items: buildQuickAddItems(dropX, dropY),
       });
     },
-    [buildQuickAddItems, screenToFlowPosition]
+    [buildQuickAddItems, screenToFlowPosition, mode]
   );
 
   const handleConnect = useCallback(

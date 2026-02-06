@@ -44,6 +44,19 @@ const outboundProxyItems: PaletteItem[] = [
   { nodeType: 'outbound-proxy', label: 'SOCKS', icon: '🧦', protocol: 'socks' },
 ];
 
+const simpleServerItems: PaletteItem[] = [
+  { nodeType: 'simple-server', label: 'Server', icon: '🖥️' },
+];
+
+const simpleRulesItems: PaletteItem[] = [
+  { nodeType: 'simple-rules', label: 'Rules', icon: '📋' },
+];
+
+const simpleTerminalItems: PaletteItem[] = [
+  { nodeType: 'simple-internet', label: 'Internet', icon: '🌍' },
+  { nodeType: 'simple-block', label: 'Block', icon: '🚫' },
+];
+
 function onDragStart(event: DragEvent, item: PaletteItem) {
   event.dataTransfer.setData('application/xray-node', JSON.stringify(item));
   event.dataTransfer.effectAllowed = 'move';
@@ -85,6 +98,7 @@ interface PaletteProps {
 }
 
 export default function Palette({ onOpenTemplates }: PaletteProps) {
+  const mode = useStore((s) => s.mode);
   const servers = useStore((s) => s.servers);
   const addServer = useStore((s) => s.addServer);
   const deleteServer = useStore((s) => s.deleteServer);
@@ -93,7 +107,15 @@ export default function Palette({ onOpenTemplates }: PaletteProps) {
   const [serverHost, setServerHost] = useState('');
   const [search, setSearch] = useState('');
 
-  const filterItems = useMemo(() => {
+  const filterItems = useMemo((): {
+    device: PaletteItem[];
+    server?: PaletteItem[];
+    rules?: PaletteItem[];
+    inbound?: PaletteItem[];
+    routing?: PaletteItem[];
+    terminal: PaletteItem[];
+    proxy?: PaletteItem[];
+  } | null => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
     const filter = (items: PaletteItem[]) =>
@@ -102,6 +124,14 @@ export default function Palette({ onOpenTemplates }: PaletteProps) {
         item.nodeType.toLowerCase().includes(q) ||
         (item.protocol && item.protocol.toLowerCase().includes(q))
       );
+    if (mode === 'simple') {
+      return {
+        device: filter(deviceItems),
+        server: filter(simpleServerItems),
+        rules: filter(simpleRulesItems),
+        terminal: filter(simpleTerminalItems),
+      };
+    }
     return {
       device: filter(deviceItems),
       inbound: filter(inboundItems),
@@ -109,7 +139,7 @@ export default function Palette({ onOpenTemplates }: PaletteProps) {
       terminal: filter(outboundTerminalItems),
       proxy: filter(outboundProxyItems),
     };
-  }, [search]);
+  }, [search, mode]);
 
   function handleAddServer() {
     if (!serverName.trim() || !serverHost.trim()) return;
@@ -173,7 +203,7 @@ export default function Palette({ onOpenTemplates }: PaletteProps) {
         )}
 
         {/* Servers section */}
-        {!search && (
+        {!search && mode === 'advanced' && (
           <div className="mb-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2 text-slate-400">
               Servers
@@ -236,25 +266,49 @@ export default function Palette({ onOpenTemplates }: PaletteProps) {
         )}
 
         {/* Node types */}
-        {(filterItems ? filterItems.device : deviceItems).length > 0 && (
-          <PaletteSection title="Device" color="text-cyan-400" items={filterItems ? filterItems.device : deviceItems} />
-        )}
-        {(filterItems ? filterItems.inbound : inboundItems).length > 0 && (
-          <PaletteSection title="INPUT" color="text-node-inbound" items={filterItems ? filterItems.inbound : inboundItems} />
-        )}
-        {(filterItems ? filterItems.routing : routingItems).length > 0 && (
-          <PaletteSection title="Routing" color="text-node-routing" items={filterItems ? filterItems.routing : routingItems} />
-        )}
-        {(filterItems ? filterItems.terminal : outboundTerminalItems).length > 0 && (
-          <PaletteSection title="OUTPUT (Terminal)" color="text-node-terminal" items={filterItems ? filterItems.terminal : outboundTerminalItems} />
-        )}
-        {(filterItems ? filterItems.proxy : outboundProxyItems).length > 0 && (
-          <PaletteSection title="OUTPUT (Proxy)" color="text-node-proxy" items={filterItems ? filterItems.proxy : outboundProxyItems} />
-        )}
-        {filterItems && filterItems.device.length === 0 && filterItems.inbound.length === 0 && filterItems.routing.length === 0 && filterItems.terminal.length === 0 && filterItems.proxy.length === 0 && (
-          <div className="text-xs text-slate-500 text-center py-4">
-            No nodes match "{search}"
-          </div>
+        {mode === 'simple' ? (
+          <>
+            {(filterItems ? filterItems.device : deviceItems).length > 0 && (
+              <PaletteSection title="Device" color="text-cyan-400" items={filterItems ? filterItems.device : deviceItems} />
+            )}
+            {(filterItems?.server ?? simpleServerItems).length > 0 && (
+              <PaletteSection title="Server" color="text-indigo-400" items={filterItems?.server ?? simpleServerItems} />
+            )}
+            {(filterItems?.rules ?? simpleRulesItems).length > 0 && (
+              <PaletteSection title="Routing" color="text-blue-400" items={filterItems?.rules ?? simpleRulesItems} />
+            )}
+            {(filterItems ? filterItems.terminal : simpleTerminalItems).length > 0 && (
+              <PaletteSection title="Terminal" color="text-emerald-400" items={filterItems ? filterItems.terminal : simpleTerminalItems} />
+            )}
+            {filterItems && filterItems.device.length === 0 && (filterItems.server?.length ?? 0) === 0 && (filterItems.rules?.length ?? 0) === 0 && filterItems.terminal.length === 0 && (
+              <div className="text-xs text-slate-500 text-center py-4">
+                No nodes match &quot;{search}&quot;
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {(filterItems ? filterItems.device : deviceItems).length > 0 && (
+              <PaletteSection title="Device" color="text-cyan-400" items={filterItems ? filterItems.device : deviceItems} />
+            )}
+            {(filterItems?.inbound ?? inboundItems).length > 0 && (
+              <PaletteSection title="INPUT" color="text-node-inbound" items={filterItems?.inbound ?? inboundItems} />
+            )}
+            {(filterItems?.routing ?? routingItems).length > 0 && (
+              <PaletteSection title="Routing" color="text-node-routing" items={filterItems?.routing ?? routingItems} />
+            )}
+            {(filterItems ? filterItems.terminal : outboundTerminalItems).length > 0 && (
+              <PaletteSection title="OUTPUT (Terminal)" color="text-node-terminal" items={filterItems ? filterItems.terminal : outboundTerminalItems} />
+            )}
+            {(filterItems?.proxy ?? outboundProxyItems).length > 0 && (
+              <PaletteSection title="OUTPUT (Proxy)" color="text-node-proxy" items={filterItems?.proxy ?? outboundProxyItems} />
+            )}
+            {filterItems && filterItems.device.length === 0 && (filterItems.inbound?.length ?? 0) === 0 && (filterItems.routing?.length ?? 0) === 0 && filterItems.terminal.length === 0 && (filterItems.proxy?.length ?? 0) === 0 && (
+              <div className="text-xs text-slate-500 text-center py-4">
+                No nodes match &quot;{search}&quot;
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

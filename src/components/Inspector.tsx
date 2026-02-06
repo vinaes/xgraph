@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '@/store';
 import { useValidationStore } from '@/store/useValidationStore';
-import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, User, TransportSettings, EdgeData } from '@/types';
+import type { XrayNodeData, DeviceData, InboundData, RoutingData, BalancerData, OutboundData, User, TransportSettings, EdgeData, SimpleServerData, SimpleRulesData, SimpleRuleCondition } from '@/types';
 import { defaultTransport } from '@/types';
 
 const inputClass = 'w-full text-sm bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-slate-200 outline-none focus:border-blue-500';
@@ -843,6 +843,15 @@ function getTabsForNode(nodeData: XrayNodeData): TabDef[] {
       { id: 'json', label: 'JSON' },
     ];
   }
+  if (nodeData.nodeType === 'simple-server') {
+    return [{ id: 'properties', label: 'Props' }, { id: 'json', label: 'JSON' }];
+  }
+  if (nodeData.nodeType === 'simple-internet' || nodeData.nodeType === 'simple-block') {
+    return [{ id: 'properties', label: 'Props' }];
+  }
+  if (nodeData.nodeType === 'simple-rules') {
+    return [{ id: 'properties', label: 'Props' }, { id: 'json', label: 'JSON' }];
+  }
   // Routing, Balancer, Terminal — just properties + JSON
   return [
     { id: 'properties', label: 'Props' },
@@ -859,11 +868,222 @@ const nodeTypeLabels: Record<string, { label: string; color: string }> = {
   balancer: { label: 'Balancer', color: 'text-node-balancer' },
   'outbound-terminal': { label: 'OUTPUT (Terminal)', color: 'text-node-terminal' },
   'outbound-proxy': { label: 'OUTPUT (Proxy)', color: 'text-node-proxy' },
+  'simple-server': { label: 'Server', color: 'text-indigo-400' },
+  'simple-internet': { label: 'Internet', color: 'text-emerald-400' },
+  'simple-block': { label: 'Block', color: 'text-red-400' },
+  'simple-rules': { label: 'Rules', color: 'text-blue-400' },
 };
+
+// ── Simple Server Properties Tab ──
+
+function SimpleServerPropertiesTab({ data, onChange }: { data: SimpleServerData; onChange: (d: Partial<SimpleServerData>) => void }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={labelClass}>Name</label>
+        <input type="text" value={data.name} onChange={(e) => onChange({ name: e.target.value })} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={labelClass}>Host</label>
+          <input type="text" value={data.host} onChange={(e) => onChange({ host: e.target.value })} placeholder="1.2.3.4" className={monoInputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Port</label>
+          <input type="number" value={data.port} onChange={(e) => onChange({ port: parseInt(e.target.value) || 443 })} className={monoInputClass} />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Protocol</label>
+        <select value={data.protocol} onChange={(e) => onChange({ protocol: e.target.value as SimpleServerData['protocol'] })} className={inputClass}>
+          {['vless', 'vmess', 'trojan', 'shadowsocks'].map((p) => (<option key={p} value={p}>{p.toUpperCase()}</option>))}
+        </select>
+      </div>
+      {/* Credentials */}
+      {(data.protocol === 'vless' || data.protocol === 'vmess') && (
+        <div>
+          <label className={labelClass}>UUID</label>
+          <input type="text" value={data.uuid || ''} onChange={(e) => onChange({ uuid: e.target.value || undefined })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className={monoInputClass} />
+        </div>
+      )}
+      {(data.protocol === 'trojan' || data.protocol === 'shadowsocks') && (
+        <div>
+          <label className={labelClass}>Password</label>
+          <input type="text" value={data.password || ''} onChange={(e) => onChange({ password: e.target.value || undefined })} className={monoInputClass} />
+        </div>
+      )}
+      {/* Transport */}
+      <div>
+        <label className={labelClass}>Transport</label>
+        <select value={data.network} onChange={(e) => onChange({ network: e.target.value as SimpleServerData['network'] })} className={inputClass}>
+          {['raw', 'ws', 'grpc', 'xhttp'].map((n) => (<option key={n} value={n}>{n.toUpperCase()}</option>))}
+        </select>
+      </div>
+      {data.network === 'ws' && (
+        <div className="space-y-2 pl-2 border-l-2 border-slate-700">
+          <div>
+            <label className={labelClass}>WS Path</label>
+            <input type="text" value={data.wsPath || ''} onChange={(e) => onChange({ wsPath: e.target.value || undefined })} placeholder="/ws" className={monoInputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>WS Host</label>
+            <input type="text" value={data.wsHost || ''} onChange={(e) => onChange({ wsHost: e.target.value || undefined })} placeholder="example.com" className={monoInputClass} />
+          </div>
+        </div>
+      )}
+      {data.network === 'grpc' && (
+        <div className="pl-2 border-l-2 border-slate-700">
+          <label className={labelClass}>Service Name</label>
+          <input type="text" value={data.grpcServiceName || ''} onChange={(e) => onChange({ grpcServiceName: e.target.value || undefined })} placeholder="GunService" className={monoInputClass} />
+        </div>
+      )}
+      {data.network === 'xhttp' && (
+        <div className="space-y-2 pl-2 border-l-2 border-slate-700">
+          <div>
+            <label className={labelClass}>XHTTP Path</label>
+            <input type="text" value={data.xhttpPath || ''} onChange={(e) => onChange({ xhttpPath: e.target.value || undefined })} placeholder="/" className={monoInputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>XHTTP Host</label>
+            <input type="text" value={data.xhttpHost || ''} onChange={(e) => onChange({ xhttpHost: e.target.value || undefined })} placeholder="example.com" className={monoInputClass} />
+          </div>
+        </div>
+      )}
+      {/* Security */}
+      <div>
+        <label className={labelClass}>Security</label>
+        <select value={data.security} onChange={(e) => onChange({ security: e.target.value as SimpleServerData['security'] })} className={inputClass}>
+          <option value="none">None</option>
+          <option value="tls">TLS</option>
+          <option value="reality">Reality</option>
+        </select>
+      </div>
+      {data.security === 'tls' && (
+        <div className="space-y-2 pl-2 border-l-2 border-slate-700">
+          <div>
+            <label className={labelClass}>SNI</label>
+            <input type="text" value={data.sni || ''} onChange={(e) => onChange({ sni: e.target.value || undefined })} placeholder="example.com" className={monoInputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Fingerprint</label>
+            <select value={data.fingerprint || ''} onChange={(e) => onChange({ fingerprint: e.target.value || undefined })} className={inputClass}>
+              <option value="">None</option>
+              {['chrome', 'firefox', 'safari', 'randomized'].map((f) => (<option key={f} value={f}>{f}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>ALPN</label>
+            <input type="text" value={data.alpn || ''} onChange={(e) => onChange({ alpn: e.target.value || undefined })} placeholder="h2, http/1.1" className={monoInputClass} />
+          </div>
+        </div>
+      )}
+      {data.security === 'reality' && (
+        <div className="space-y-2 pl-2 border-l-2 border-slate-700">
+          <div>
+            <label className={labelClass}>Server Name</label>
+            <input type="text" value={data.sni || ''} onChange={(e) => onChange({ sni: e.target.value || undefined })} placeholder="www.microsoft.com" className={monoInputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Fingerprint</label>
+            <select value={data.fingerprint || ''} onChange={(e) => onChange({ fingerprint: e.target.value || undefined })} className={inputClass}>
+              <option value="">None</option>
+              {['chrome', 'firefox', 'safari', 'randomized'].map((f) => (<option key={f} value={f}>{f}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Public Key</label>
+            <input type="text" value={data.realityPublicKey || ''} onChange={(e) => onChange({ realityPublicKey: e.target.value || undefined })} className={monoInputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Short ID</label>
+            <input type="text" value={data.realityShortId || ''} onChange={(e) => onChange({ realityShortId: e.target.value || undefined })} className={monoInputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>SpiderX</label>
+            <input type="text" value={data.realitySpiderX || ''} onChange={(e) => onChange({ realitySpiderX: e.target.value || undefined })} placeholder="/" className={monoInputClass} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Simple Label Properties Tab ──
+
+function SimpleLabelPropertiesTab({ label, onChange }: { label: string; onChange: (label: string) => void }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={labelClass}>Label</label>
+        <input type="text" value={label} onChange={(e) => onChange(e.target.value)} className={inputClass} />
+      </div>
+    </div>
+  );
+}
+
+// ── Simple Rules Properties Tab ──
+
+function SimpleRulesPropertiesTab({ data, onChange }: { data: SimpleRulesData; onChange: (d: Partial<SimpleRulesData>) => void }) {
+  const rules = data.rules || [];
+
+  const addRule = () => {
+    onChange({ rules: [...rules, { type: 'domain', value: '' }] });
+  };
+
+  const removeRule = (index: number) => {
+    onChange({ rules: rules.filter((_, i) => i !== index) });
+  };
+
+  const updateRule = (index: number, updates: Partial<SimpleRuleCondition>) => {
+    onChange({ rules: rules.map((r, i) => (i === index ? { ...r, ...updates } : r)) });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={labelClass}>Label</label>
+        <input type="text" value={data.label} onChange={(e) => onChange({ label: e.target.value })} className={inputClass} />
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-400">{rules.length} rule{rules.length !== 1 ? 's' : ''}</div>
+        <button onClick={addRule} className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">+ Add Rule</button>
+      </div>
+      {rules.length === 0 && (
+        <div className="text-center py-4 text-xs text-slate-500 border border-dashed border-slate-700 rounded">
+          No rules. Traffic will match everything.
+        </div>
+      )}
+      {rules.map((rule, i) => (
+        <div key={i} className="bg-slate-800/50 border border-slate-700 rounded p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-slate-500 font-mono">#{i + 1}</span>
+            <button onClick={() => removeRule(i)} className="text-[11px] text-slate-500 hover:text-red-400 transition-colors">Remove</button>
+          </div>
+          <div>
+            <label className={labelClass}>Type</label>
+            <select value={rule.type} onChange={(e) => updateRule(i, { type: e.target.value as SimpleRuleCondition['type'] })} className={inputClass}>
+              <option value="domain">Domain</option>
+              <option value="geosite">Geosite</option>
+              <option value="geoip">GeoIP</option>
+              <option value="all">All Traffic</option>
+            </select>
+          </div>
+          {rule.type !== 'all' && (
+            <div>
+              <label className={labelClass}>Value</label>
+              <input type="text" value={rule.value} onChange={(e) => updateRule(i, { value: e.target.value })} placeholder={rule.type === 'domain' ? 'example.com' : rule.type === 'geosite' ? 'google' : 'cn'} className={monoInputClass} />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── Edge Inspector ──
 
 function EdgeInspector({ edgeId }: { edgeId: string }) {
+  const mode = useStore((s) => s.mode);
   const edges = useStore((s) => s.edges);
   const nodes = useStore((s) => s.nodes);
   const updateEdgeData = useStore((s) => s.updateEdgeData);
@@ -967,6 +1187,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
         </div>
 
         {/* Transport */}
+        {mode !== 'simple' && (
         <div>
           <label className={labelClass}>Transport</label>
           <div className="text-[10px] text-slate-500 mb-2">
@@ -980,6 +1201,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
             disabled={isInternalEdge}
           />
         </div>
+        )}
 
         {/* Label */}
         <div>
@@ -1019,6 +1241,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 // ── Main Inspector ──
 
 export default function Inspector() {
+  const mode = useStore((s) => s.mode);
   const selectedNodeId = useStore((s) => s.selectedNodeId);
   const selectedEdgeId = useStore((s) => s.selectedEdgeId);
   const nodes = useStore((s) => s.nodes);
@@ -1051,6 +1274,10 @@ export default function Inspector() {
                     nd.nodeType === 'routing' ? 'bg-blue-500' :
                     nd.nodeType === 'balancer' ? 'bg-purple-500' :
                     nd.nodeType === 'outbound-terminal' ? 'bg-red-500' :
+                    nd.nodeType === 'simple-server' ? 'bg-indigo-500' :
+                    nd.nodeType === 'simple-internet' ? 'bg-emerald-500' :
+                    nd.nodeType === 'simple-block' ? 'bg-red-500' :
+                    nd.nodeType === 'simple-rules' ? 'bg-blue-500' :
                     'bg-orange-500'
                   }`} />
                   <span className="truncate">{nd.nodeType === 'device' ? nd.name : ('tag' in nd ? nd.tag : '(no tag)') || '(no tag)'}</span>
@@ -1118,6 +1345,18 @@ export default function Inspector() {
         if (nodeData.nodeType === 'outbound-terminal' || nodeData.nodeType === 'outbound-proxy') {
           return <OutboundPropertiesTab data={nodeData} onChange={handleChange} />;
         }
+        if (nodeData.nodeType === 'simple-server') {
+          return <SimpleServerPropertiesTab data={nodeData} onChange={handleChange} />;
+        }
+        if (nodeData.nodeType === 'simple-internet') {
+          return <SimpleLabelPropertiesTab label={nodeData.label} onChange={(label) => handleChange({ label })} />;
+        }
+        if (nodeData.nodeType === 'simple-block') {
+          return <SimpleLabelPropertiesTab label={nodeData.label} onChange={(label) => handleChange({ label })} />;
+        }
+        if (nodeData.nodeType === 'simple-rules') {
+          return <SimpleRulesPropertiesTab data={nodeData} onChange={handleChange} />;
+        }
         return null;
 
       case 'users':
@@ -1151,7 +1390,7 @@ export default function Inspector() {
       </div>
 
       {/* Server assignment */}
-      {servers.length > 0 && (
+      {servers.length > 0 && mode === 'advanced' && (
         <div className="px-3 py-2 border-b border-slate-700 bg-slate-800/30">
           <label className="block text-[10px] text-slate-500 mb-1">Server</label>
           <select

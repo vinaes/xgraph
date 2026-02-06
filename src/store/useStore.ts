@@ -50,7 +50,7 @@ interface ImportProjectData {
   id?: string;
   name: string;
   version?: string;
-  mode: ProjectMode;
+  mode: ProjectMode | string; // accepts legacy values like 'client'/'infrastructure'/'hybrid'
   metadata?: { createdAt: string; updatedAt: string };
   nodes: XrayNode[];
   edges: XrayEdge[];
@@ -104,7 +104,7 @@ const createInitialState = (): ProjectState => ({
   id: uuidv4(),
   name: 'Untitled Project',
   version: '1.0.0',
-  mode: 'client',
+  mode: 'advanced',
   metadata: {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -170,7 +170,7 @@ export const useStore = create<ProjectState & ProjectActions>()((set, get) => ({
       data: {
         ...node.data,
         ...('tag' in node.data ? { tag: `${(node.data as XrayNodeData & { tag: string }).tag}-copy` } : {}),
-        ...('name' in node.data && node.data.nodeType === 'device' ? { name: `${node.data.name} (copy)` } : {}),
+        ...('name' in node.data && (node.data.nodeType === 'device' || node.data.nodeType === 'simple-server') ? { name: `${node.data.name} (copy)` } : {}),
       } as XrayNodeData,
       selected: false,
     };
@@ -297,11 +297,14 @@ export const useStore = create<ProjectState & ProjectActions>()((set, get) => ({
         data: { ...edgeData, transport: { ...defaultTransport } },
       };
     });
+    // Migrate legacy mode values to new system
+    const legacyModes = ['client', 'infrastructure', 'hybrid'];
+    const migratedMode: ProjectMode = legacyModes.includes(data.mode) ? 'advanced' : data.mode as ProjectMode;
     set({
       id: data.id || uuidv4(),
       name: data.name,
       version: data.version || '1.0.0',
-      mode: data.mode,
+      mode: migratedMode,
       metadata: data.metadata || { createdAt: now, updatedAt: now },
       nodes: data.nodes,
       edges: normalizedEdges,

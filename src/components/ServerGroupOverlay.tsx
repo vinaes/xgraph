@@ -24,7 +24,7 @@ export default memo(function ServerGroupOverlay() {
   const { x, y, zoom } = useViewport();
 
   const groups = useMemo(() => {
-    if (mode !== 'infrastructure' || servers.length === 0) return [];
+    if (mode !== 'advanced' || servers.length === 0) return [];
 
     const serverMap = new Map(servers.map((s) => [s.id, s]));
     const nodesByServer = new Map<string, { minX: number; minY: number; maxX: number; maxY: number }>();

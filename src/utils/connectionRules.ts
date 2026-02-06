@@ -36,13 +36,23 @@ export function isValidConnection(
     };
   }
 
+  // Simple mode terminal nodes can never be a source
+  if (sourceType === 'simple-internet' || sourceType === 'simple-block') {
+    return {
+      valid: false,
+      reason: 'Terminal nodes (internet/block) cannot have outgoing connections',
+    };
+  }
+
   // Define allowed connections
   const allowed: Record<string, string[]> = {
-    device: ['inbound', 'outbound-proxy'], // device connects to INPUT (socks/http) or OUTPUT on client side
+    device: ['inbound', 'outbound-proxy', 'simple-server', 'simple-rules'], // device connects to INPUT (socks/http) or OUTPUT on client side
     inbound: ['routing', 'balancer', 'outbound-terminal', 'outbound-proxy'],
     routing: ['routing', 'balancer', 'outbound-terminal', 'outbound-proxy'],
     balancer: ['outbound-terminal', 'outbound-proxy'],
     'outbound-proxy': ['inbound'], // proxy chain: OUTPUT on server A → INPUT on server B
+    'simple-server': ['simple-server', 'simple-internet', 'simple-block', 'simple-rules'],
+    'simple-rules': ['simple-server', 'simple-internet', 'simple-block'],
   };
 
   const allowedTargets = allowed[sourceType];

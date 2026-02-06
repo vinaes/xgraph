@@ -9,6 +9,8 @@ import type {
   Server,
   User,
   EdgeData,
+  SimpleServerData,
+  SimpleRulesData,
 } from '@/types';
 
 // Keep ProjectMode as optional param type for backwards compat
@@ -31,6 +33,7 @@ interface XrayOutbound {
   protocol: string;
   settings?: Record<string, unknown>;
   streamSettings?: Record<string, unknown>;
+  proxySettings?: { tag: string };
 }
 
 interface XrayRoutingRule {
@@ -69,7 +72,7 @@ export interface ExportResult {
 
 // ── Transport/StreamSettings Builder ──
 
-function buildStreamSettings(transport?: TransportSettings): Record<string, unknown> {
+export function buildStreamSettings(transport?: TransportSettings): Record<string, unknown> {
   if (!transport) return {};
   const network = transport.network === 'raw' ? 'tcp' : transport.network;
   const stream: Record<string, unknown> = {
@@ -448,8 +451,12 @@ export function exportConfig(
   nodes: GraphNode[],
   edges: GraphEdge[],
   servers: Server[],
-  _mode?: ProjectMode
+  mode?: ProjectMode
 ): ExportResult[] {
+  if (mode === 'simple') {
+    return exportSimpleConfig(nodes, edges);
+  }
+
   // Filter out device nodes — UI-only, not part of xray config
   const configNodes = nodes.filter((n) => getNodeData(n).nodeType !== 'device');
   const nodeServerMap = new Map(nodes.map((n) => [n.id, getServerId(n)]));
@@ -589,6 +596,334 @@ function buildSingleConfig(
   };
 
   return { filename, config };
+}
+
+// ── Simple Mode Helpers ──
+
+function buildSimpleTransport(data: SimpleServerData): TransportSettings {
+  const transport: TransportSettings = {
+    network: data.network,
+    security: data.security,
+  };
+
+  if (data.network === 'ws') {
+    transport.wsSettings = {
+      path: data.wsPath,
+      headers: data.wsHost ? { Host: data.wsHost } : undefined,
+    };
+  }
+
+  if (data.network === 'grpc') {
+    transport.grpcSettings = { serviceName: data.grpcServiceName };
+  }
+
+  if (data.network === 'xhttp') {
+    transport.xhttpSettings = { path: data.xhttpPath, host: data.xhttpHost };
+  }
+
+  if (data.security === 'tls') {
+    transport.tlsSettings = {
+      serverName: data.sni,
+      fingerprint: data.fingerprint,
+      alpn: data.alpn
+        ? data.alpn.split(',').map((s) => s.trim()).filter(Boolean)
+        : undefined,
+    };
+  }
+
+  if (data.security === 'reality') {
+    transport.realitySettings = {
+      serverName: data.sni,
+      fingerprint: data.fingerprint,
+      publicKey: data.realityPublicKey,
+      shortId: data.realityShortId,
+      spiderX: data.realitySpiderX,
+    };
+  }
+
+  return transport;
+}
+
+function buildSimpleOutbound(data: SimpleServerData, tag: string): XrayOutbound {
+  const outbound: XrayOutbound = {
+    tag,
+    protocol: data.protocol,
+  };
+
+  // Build settings based on protocol
+  switch (data.protocol) {
+    case 'vless':
+      outbound.settings = {
+        vnext: [{
+          address: data.host,
+          port: data.port,
+          users: [{ id: data.uuid || '', encryption: 'none' }],
+        }],
+      };
+      break;
+    case 'vmess':
+      outbound.settings = {
+        vnext: [{
+          address: data.host,
+          port: data.port,
+          users: [{ id: data.uuid || '', security: 'auto' }],
+        }],
+      };
+      break;
+    case 'trojan':
+      outbound.settings = {
+        servers: [{
+          address: data.host,
+          port: data.port,
+          password: data.password || '',
+        }],
+      };
+      break;
+    case 'shadowsocks':
+      outbound.settings = {
+        servers: [{
+          address: data.host,
+          port: data.port,
+          method: 'aes-256-gcm',
+          password: data.password || '',
+        }],
+      };
+      break;
+  }
+
+  const stream = buildStreamSettings(buildSimpleTransport(data));
+  if (Object.keys(stream).length > 0) {
+    outbound.streamSettings = stream;
+  }
+
+  return outbound;
+}
+
+// ── Simple Mode Export ──
+
+export function exportSimpleConfig(
+  nodes: GraphNode[],
+  edges: GraphEdge[]
+): ExportResult[] {
+  const outbounds: XrayOutbound[] = [];
+  const rules: XrayRoutingRule[] = [];
+  let hasBlock = false;
+  let hasDirect = false;
+
+  // Map node IDs to their data for quick lookup
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  // Resolve what outbound tag a target node maps to
+  function resolveOutboundTag(targetNode: GraphNode): string | undefined {
+    const data = getNodeData(targetNode);
+    switch (data.nodeType) {
+      case 'simple-server':
+        return `proxy-${targetNode.id}`;
+      case 'simple-internet':
+        return 'direct';
+      case 'simple-block':
+        return 'block';
+      default:
+        return undefined;
+    }
+  }
+
+  // Collect server nodes and build their outbounds
+  const serverNodes = nodes.filter((n) => getNodeData(n).nodeType === 'simple-server');
+  for (const node of serverNodes) {
+    const data = getNodeData(node) as SimpleServerData & { nodeType: 'simple-server' };
+    const tag = `proxy-${node.id}`;
+
+    // Check if this server chains to another server
+    const serverOutEdges = getOutgoingEdges(node.id, edges);
+    let chainTarget: GraphNode | undefined;
+    for (const edge of serverOutEdges) {
+      const target = nodeMap.get(edge.target);
+      if (target && getNodeData(target).nodeType === 'simple-server') {
+        chainTarget = target;
+        break;
+      }
+    }
+
+    if (chainTarget) {
+      // Server → Server chain: first server is the outbound proxy on the client.
+      // Second server gets its own config file (server config with inbound + freedom outbound).
+      const outbound = buildSimpleOutbound(data, tag);
+      outbound.proxySettings = { tag: `proxy-${chainTarget.id}` };
+      outbounds.push(outbound);
+    } else {
+      outbounds.push(buildSimpleOutbound(data, tag));
+    }
+  }
+
+  // Check for internet and block nodes
+  const internetNodes = nodes.filter((n) => getNodeData(n).nodeType === 'simple-internet');
+  const blockNodes = nodes.filter((n) => getNodeData(n).nodeType === 'simple-block');
+
+  if (internetNodes.length > 0) hasDirect = true;
+  if (blockNodes.length > 0) hasBlock = true;
+
+  // Process rules nodes
+  const rulesNodes = nodes.filter((n) => getNodeData(n).nodeType === 'simple-rules');
+  for (const rulesNode of rulesNodes) {
+    const rulesData = getNodeData(rulesNode) as SimpleRulesData & { nodeType: 'simple-rules' };
+    const rulesOutEdges = getOutgoingEdges(rulesNode.id, edges);
+
+    // Find the target outbound tag for this rules node
+    let outboundTag: string | undefined;
+    for (const edge of rulesOutEdges) {
+      const target = nodeMap.get(edge.target);
+      if (target) {
+        outboundTag = resolveOutboundTag(target);
+        if (outboundTag) break;
+      }
+    }
+
+    if (!outboundTag) continue;
+
+    // Mark direct/block usage from rules targets
+    if (outboundTag === 'direct') hasDirect = true;
+    if (outboundTag === 'block') hasBlock = true;
+
+    for (const condition of rulesData.rules) {
+      const rule: XrayRoutingRule = { type: 'field', outboundTag };
+
+      switch (condition.type) {
+        case 'domain':
+          rule.domain = [`domain:${condition.value}`];
+          break;
+        case 'geosite':
+          rule.domain = [`geosite:${condition.value}`];
+          break;
+        case 'geoip':
+          rule.ip = [`geoip:${condition.value}`];
+          break;
+        case 'all':
+          // Catch-all: no conditions, just outboundTag
+          break;
+      }
+
+      rules.push(rule);
+    }
+  }
+
+  // Build standard outbounds for direct and block
+  if (hasDirect) {
+    outbounds.push({
+      tag: 'direct',
+      protocol: 'freedom',
+      settings: { domainStrategy: 'UseIP' },
+    });
+  }
+
+  if (hasBlock) {
+    outbounds.push({
+      tag: 'block',
+      protocol: 'blackhole',
+      settings: { response: { type: 'none' } },
+    });
+  }
+
+  // If no explicit rules, add a default route to the first proxy (or direct)
+  if (rules.length === 0 && outbounds.length > 0) {
+    // The first outbound is the default; xray uses the first outbound as the default
+    // so no explicit routing rule is needed.
+  }
+
+  // Build the client config
+  const inbounds: XrayInbound[] = [
+    {
+      tag: 'socks-in',
+      protocol: 'socks',
+      listen: '127.0.0.1',
+      port: 1080,
+      settings: { auth: 'noauth', udp: true },
+      sniffing: { enabled: true, destOverride: ['http', 'tls'] },
+    },
+  ];
+
+  const config: XrayConfig = {
+    log: { loglevel: 'warning' },
+    inbounds,
+    outbounds,
+    routing: {
+      domainStrategy: 'AsIs',
+      rules,
+    },
+  };
+
+  const results: ExportResult[] = [{ filename: 'config.json', config }];
+
+  // Generate server configs for chained servers (Server → Server)
+  for (const node of serverNodes) {
+    const serverOutEdges = getOutgoingEdges(node.id, edges);
+    for (const edge of serverOutEdges) {
+      const target = nodeMap.get(edge.target);
+      if (target && getNodeData(target).nodeType === 'simple-server') {
+        // The target server in the chain needs its own server-side config
+        const targetData = getNodeData(target) as SimpleServerData & { nodeType: 'simple-server' };
+        const safeName = targetData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+        const serverInbound: XrayInbound = {
+          tag: 'inbound',
+          protocol: targetData.protocol,
+          listen: '0.0.0.0',
+          port: targetData.port,
+          settings: buildInboundSettingsFromSimple(targetData),
+        };
+
+        const serverTransport = buildStreamSettings(buildSimpleTransport(targetData));
+        if (Object.keys(serverTransport).length > 0) {
+          serverInbound.streamSettings = serverTransport;
+        }
+
+        const serverConfig: XrayConfig = {
+          log: { loglevel: 'warning' },
+          inbounds: [serverInbound],
+          outbounds: [
+            {
+              tag: 'direct',
+              protocol: 'freedom',
+              settings: { domainStrategy: 'UseIP' },
+            },
+          ],
+          routing: {
+            domainStrategy: 'AsIs',
+            rules: [],
+          },
+        };
+
+        results.push({ filename: `${safeName}_server_config.json`, config: serverConfig });
+      }
+    }
+  }
+
+  return results;
+}
+
+// Build inbound settings from SimpleServerData for chained server configs
+function buildInboundSettingsFromSimple(data: SimpleServerData): Record<string, unknown> {
+  switch (data.protocol) {
+    case 'vless':
+      return {
+        clients: [{ id: data.uuid || '', email: 'default' }],
+        decryption: 'none',
+      };
+    case 'vmess':
+      return {
+        clients: [{ id: data.uuid || '', email: 'default' }],
+      };
+    case 'trojan':
+      return {
+        clients: [{ password: data.password || '', email: 'default' }],
+      };
+    case 'shadowsocks':
+      return {
+        method: 'aes-256-gcm',
+        password: data.password || '',
+      };
+    default:
+      return {};
+  }
 }
 
 // ── Export as downloadable JSON string ──
