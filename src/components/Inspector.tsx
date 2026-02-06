@@ -891,10 +891,10 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
     if (!edgeData.transport) {
       updateEdgeData(edgeId, { ...edgeData, transport: { ...defaultTransport } });
     }
-    if (edgeData.transport?.network === 'tcp') {
+    if ((edgeData.transport?.network as string) === 'tcp') {
       updateEdgeData(edgeId, {
         ...edgeData,
-        transport: { ...edgeData.transport, network: 'raw' },
+        transport: { ...edgeData.transport!, network: 'raw' },
       });
     }
   }, [edgeId, edgeData, updateEdgeData]);

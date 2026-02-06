@@ -302,7 +302,7 @@ export function runSimulation(
         highlightNodeIds,
         highlightEdgeIds,
         finalOutbound: null,
-        explanation: `Dead end at "${data.tag}" — no outgoing connections.`,
+        explanation: `Dead end at "${'tag' in data ? data.tag : data.name}" — no outgoing connections.`,
       };
     }
 
@@ -363,7 +363,7 @@ export function runSimulation(
         const targetData = targetNode.data as XrayNodeData;
         if (balancerData.selector.length === 0) return true;
         return balancerData.selector.some(
-          (sel) => targetData.tag === sel || targetData.tag.includes(sel)
+          (sel) => 'tag' in targetData && (targetData.tag === sel || targetData.tag.includes(sel))
         );
       });
 
@@ -393,7 +393,8 @@ export function runSimulation(
 
       const selectedTarget = getNodeById(selectedEdge.target, nodes);
       if (selectedTarget) {
-        path[path.length - 1]!.description += ` → selected: ${(selectedTarget.data as XrayNodeData).tag}`;
+        const selData = selectedTarget.data as XrayNodeData;
+        path[path.length - 1]!.description += ` → selected: ${'tag' in selData ? selData.tag : selData.name}`;
       }
 
       highlightEdgeIds.push(selectedEdge.id);

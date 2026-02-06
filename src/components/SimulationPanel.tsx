@@ -40,10 +40,10 @@ export default function SimulationPanel({ onClose }: SimulationPanelProps) {
     return nodes
       .filter((n) => (n.data as XrayNodeData).nodeType === 'inbound')
       .map((n) => {
-        const d = n.data as XrayNodeData;
+        const d = n.data as Extract<XrayNodeData, { nodeType: 'inbound' }>;
         return {
           tag: d.tag,
-          label: `${d.tag} (${(d as { protocol: string }).protocol}:${(d as { port: number }).port})`,
+          label: `${d.tag} (${d.protocol}:${d.port})`,
         };
       });
   }, [nodes]);
